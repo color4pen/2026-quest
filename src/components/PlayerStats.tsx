@@ -41,9 +41,9 @@ export function PlayerStats({ player: party, mapName }: PlayerStatsProps) {
       <div className="stat-box">
         <div className="stat-label">ゲーム情報</div>
         <div className="game-tips">
-          <div className="tip-item">🎯 モンスターを倒してレベルアップ</div>
-          <div className="tip-item">💎 宝箱を探そう</div>
-          <div className="tip-item">🌳 木と水は通行不可</div>
+          <div className="tip-item"><span role="img" aria-label="ターゲット">🎯</span> モンスターを倒してレベルアップ</div>
+          <div className="tip-item"><span role="img" aria-label="宝石">💎</span> 宝箱を探そう</div>
+          <div className="tip-item"><span role="img" aria-label="木">🌳</span> 木と水は通行不可</div>
         </div>
       </div>
     </div>

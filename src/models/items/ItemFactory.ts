@@ -206,27 +206,23 @@ const ITEM_DEFINITIONS: ItemDefinitionData[] = [
  * IDからアイテムインスタンスを生成
  */
 export class ItemFactory {
-  private static itemCache: Map<string, Item> = new Map();
+  private static definitionCache: Map<string, ItemDefinitionData> = new Map();
 
   /**
    * IDからアイテムを生成
-   * キャッシュを使用して同じIDのアイテムは同じインスタンスを返す
+   * 毎回新しいインスタンスを返す（mutation リスクを排除）
    */
   static create(id: string): Item {
-    // キャッシュにあればそれを返す
-    const cached = this.itemCache.get(id);
-    if (cached) {
-      return cached;
-    }
-
-    const definition = ITEM_DEFINITIONS.find(d => d.id === id);
+    let definition = this.definitionCache.get(id);
     if (!definition) {
-      throw new Error(`Unknown item id: ${id}`);
+      definition = ITEM_DEFINITIONS.find(d => d.id === id);
+      if (!definition) {
+        throw new Error(`Unknown item id: ${id}`);
+      }
+      this.definitionCache.set(id, definition);
     }
 
-    const item = this.createFromDefinition(definition);
-    this.itemCache.set(id, item);
-    return item;
+    return this.createFromDefinition(definition);
   }
 
   /**
@@ -284,7 +280,7 @@ export class ItemFactory {
    * キャッシュをクリア（テスト用）
    */
   static clearCache(): void {
-    this.itemCache.clear();
+    this.definitionCache.clear();
   }
 
   /**

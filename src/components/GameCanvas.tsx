@@ -1,13 +1,30 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import { TileType, GrassDecoration, TILE_SIZE, CameraState } from '../types/game';
-
-// タイル画像をロード
-const villageImage = new Image();
-villageImage.src = '/assets/images/tiles/village.jpg';
-const caveImage = new Image();
-caveImage.src = '/assets/images/tiles/cave.jpg';
 import { GameMapState } from '../models';
 import { GameObject } from './game';
+
+function useImage(src: string): HTMLImageElement | null {
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = src;
+    img.onload = () => {
+      imgRef.current = img;
+      setLoaded(true);
+    };
+    img.onerror = () => {
+      console.error(`Failed to load image: ${src}`);
+    };
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [src]);
+
+  return loaded ? imgRef.current : null;
+}
 
 interface GameCanvasProps {
   gameObjects: GameObject[];
@@ -21,6 +38,8 @@ interface GameCanvasProps {
  */
 export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const villageImage = useImage('/assets/images/tiles/village.jpg');
+  const caveImage = useImage('/assets/images/tiles/cave.jpg');
 
   const mapHeight = map.tiles.length;
   const mapWidth = map.tiles[0]?.length ?? 20;
@@ -55,7 +74,7 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
         const tile = map.tiles[y]?.[x];
         const decorations = map.grassDecorations[y]?.[x];
         if (tile) {
-          drawTile(ctx, x, y, tile, decorations, camera);
+          drawTile(ctx, x, y, tile, decorations, camera, villageImage, caveImage);
         }
       }
     }
@@ -82,7 +101,7 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
       ctx.lineTo(canvas.width, screenY);
     }
     ctx.stroke();
-  }, [gameObjects, map, mapHeight, mapWidth, camera]);
+  }, [gameObjects, map, mapHeight, mapWidth, camera, villageImage, caveImage]);
 
   return (
     <div className="game-screen">
@@ -104,7 +123,9 @@ function drawTile(
   y: number,
   type: TileType,
   decorations: GrassDecoration[] | null,
-  camera: CameraState
+  camera: CameraState,
+  villageImage: HTMLImageElement | null,
+  caveImage: HTMLImageElement | null,
 ) {
   // カメラからの相対位置を計算
   const px = (x - camera.x + camera.viewportWidth / 2) * TILE_SIZE;
@@ -226,7 +247,7 @@ function drawTile(
     case 'village_tl':
       ctx.fillStyle = '#4a7c59';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (villageImage.complete && villageImage.naturalWidth > 0) {
+      if (villageImage) {
         const hw = villageImage.naturalWidth / 2;
         const hh = villageImage.naturalHeight / 2;
         ctx.drawImage(villageImage, 0, 0, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
@@ -236,7 +257,7 @@ function drawTile(
     case 'village_tr':
       ctx.fillStyle = '#4a7c59';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (villageImage.complete && villageImage.naturalWidth > 0) {
+      if (villageImage) {
         const hw = villageImage.naturalWidth / 2;
         const hh = villageImage.naturalHeight / 2;
         ctx.drawImage(villageImage, hw, 0, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
@@ -246,7 +267,7 @@ function drawTile(
     case 'village_bl':
       ctx.fillStyle = '#4a7c59';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (villageImage.complete && villageImage.naturalWidth > 0) {
+      if (villageImage) {
         const hw = villageImage.naturalWidth / 2;
         const hh = villageImage.naturalHeight / 2;
         ctx.drawImage(villageImage, 0, hh, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
@@ -256,7 +277,7 @@ function drawTile(
     case 'village_br':
       ctx.fillStyle = '#4a7c59';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (villageImage.complete && villageImage.naturalWidth > 0) {
+      if (villageImage) {
         const hw = villageImage.naturalWidth / 2;
         const hh = villageImage.naturalHeight / 2;
         ctx.drawImage(villageImage, hw, hh, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
@@ -267,7 +288,7 @@ function drawTile(
     case 'cave_tl':
       ctx.fillStyle = '#4a7c59';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (caveImage.complete && caveImage.naturalWidth > 0) {
+      if (caveImage) {
         const hw = caveImage.naturalWidth / 2;
         const hh = caveImage.naturalHeight / 2;
         ctx.drawImage(caveImage, 0, 0, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
@@ -277,7 +298,7 @@ function drawTile(
     case 'cave_tr':
       ctx.fillStyle = '#4a7c59';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (caveImage.complete && caveImage.naturalWidth > 0) {
+      if (caveImage) {
         const hw = caveImage.naturalWidth / 2;
         const hh = caveImage.naturalHeight / 2;
         ctx.drawImage(caveImage, hw, 0, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
@@ -287,7 +308,7 @@ function drawTile(
     case 'cave_bl':
       ctx.fillStyle = '#4a7c59';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (caveImage.complete && caveImage.naturalWidth > 0) {
+      if (caveImage) {
         const hw = caveImage.naturalWidth / 2;
         const hh = caveImage.naturalHeight / 2;
         ctx.drawImage(caveImage, 0, hh, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
@@ -297,7 +318,7 @@ function drawTile(
     case 'cave_br':
       ctx.fillStyle = '#4a7c59';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (caveImage.complete && caveImage.naturalWidth > 0) {
+      if (caveImage) {
         const hw = caveImage.naturalWidth / 2;
         const hh = caveImage.naturalHeight / 2;
         ctx.drawImage(caveImage, hw, hh, hw, hh, px, py, TILE_SIZE, TILE_SIZE);

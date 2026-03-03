@@ -1,5 +1,19 @@
 import { MapDefinition, TileType } from '../types/game';
 
+/**
+ * シード付き疑似乱数生成器（mulberry32）
+ * マップ生成の決定性を保証する
+ */
+function seededRandom(seed: number): () => number {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // タイルの略称（マップ定義を見やすくするため）
 const G: TileType = 'grass';
 const T: TileType = 'tree';
@@ -79,6 +93,7 @@ function generateLargeField(): TileType[][] {
   const width = 50;
   const height = 40;
   const tiles: TileType[][] = [];
+  const rand = seededRandom(2026);
 
   // 村の位置（北側）- 2x2オブジェクト
   const villageX = 24;
@@ -126,7 +141,7 @@ function generateLargeField(): TileType[][] {
 
       // === 森林エリア（右上） ===
       else if (x >= 36 && x <= 44 && y >= 8 && y <= 16 && x !== 40) {
-        if (Math.random() < 0.4) row.push(T);
+        if (rand() < 0.4) row.push(T);
         else row.push(G);
       }
 

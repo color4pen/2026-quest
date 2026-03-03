@@ -323,8 +323,8 @@ export class PartyMember {
    * ターン終了時の状態異常処理
    * @returns 処理結果の配列（ログ表示用）
    */
-  processStatusEffectsTurnEnd(): { message: string; damage?: number }[] {
-    const results: { message: string; damage?: number }[] = [];
+  processStatusEffectsTurnEnd(): { message: string; damage?: number; targetDied?: boolean }[] {
+    const results: { message: string; damage?: number; targetDied?: boolean }[] = [];
 
     for (const effect of this.statusEffects) {
       const result = effect.onTurnEnd(this);
@@ -332,6 +332,7 @@ export class PartyMember {
         results.push({
           message: result.message,
           damage: result.damage,
+          targetDied: this.isDead(),
         });
       }
       effect.tick();

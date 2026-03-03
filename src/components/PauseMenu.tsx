@@ -62,11 +62,11 @@ export function PauseMenu({ party, saveSlots, onResume, onSaveToSlot, onLoadFrom
   ];
 
   // 職業アイコン
-  const CLASS_ICONS: Record<string, string> = {
-    hero: '⚔️',
-    warrior: '🛡️',
-    mage: '🔮',
-    healer: '✨',
+  const CLASS_ICONS: Record<string, { emoji: string; label: string }> = {
+    hero: { emoji: '⚔️', label: '剣' },
+    warrior: { emoji: '🛡️', label: '盾' },
+    mage: { emoji: '🔮', label: '水晶玉' },
+    healer: { emoji: '✨', label: '輝き' },
   };
 
   // パーティーメンバーカード
@@ -86,7 +86,7 @@ export function PauseMenu({ party, saveSlots, onResume, onSaveToSlot, onLoadFrom
             {member.image ? (
               <img src={member.image} alt={member.name} className="member-card-image" />
             ) : (
-              <span className={`member-card-icon ${member.class}`}>{CLASS_ICONS[member.class]}</span>
+              <span className={`member-card-icon ${member.class}`} role="img" aria-label={CLASS_ICONS[member.class]?.label}>{CLASS_ICONS[member.class]?.emoji}</span>
             )}
           </div>
 

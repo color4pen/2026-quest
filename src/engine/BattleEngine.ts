@@ -648,11 +648,7 @@ export class BattleEngine {
           // メッセージに改行が含まれる場合は分割して表示
           const messages = result.message.split('\n');
           for (const msg of messages) {
-            if (msg.includes('倒れた')) {
-              this.addLog(msg, 'system');
-            } else {
-              this.addLog(msg, 'damage');
-            }
+            this.addLog(msg, result.targetDied ? 'system' : 'damage');
           }
         }
       }
