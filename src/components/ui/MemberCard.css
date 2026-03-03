@@ -1,0 +1,147 @@
+/* Member Card */
+.member-card {
+  background: linear-gradient(180deg, #1e3a5f 0%, #0a1929 100%);
+  border: 2px solid #2a4a6a;
+  border-radius: 8px;
+  padding: 10px;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.member-card.clickable {
+  cursor: pointer;
+}
+
+.member-card.clickable:hover {
+  border-color: var(--accent-primary);
+}
+
+/* States */
+.member-card.active {
+  border-color: #ffd700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.member-card.acting {
+  border-color: #2ecc71;
+  animation: pulse 0.5s ease-in-out infinite;
+}
+
+.member-card.selected {
+  border-color: var(--accent-primary);
+  background: linear-gradient(180deg, #1e4a7f 0%, #0a2949 100%);
+}
+
+.member-card.dead {
+  opacity: 0.5;
+  filter: grayscale(50%);
+}
+
+.member-card.defending {
+  border-color: #3498db;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Name */
+.member-card-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--text-light);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+/* Bars */
+.member-card-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Badges */
+.member-card-badges {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.member-badge {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 6px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  color: white;
+}
+
+.badge-defend {
+  background: #3498db;
+}
+
+.badge-dead {
+  background: #e74c3c;
+}
+
+.badge-status {
+  /* Color set dynamically via style */
+}
+
+/* Variants */
+
+/* Battle variant - horizontal layout */
+.member-card-battle {
+  min-width: 140px;
+}
+
+/* Compact variant */
+.member-card-compact {
+  padding: 8px;
+}
+
+.member-card-compact .member-card-name {
+  font-size: 8px;
+  margin-bottom: 6px;
+}
+
+/* Full variant - more details */
+.member-card-full {
+  padding: 12px;
+}
+
+.member-card-full .member-card-name {
+  font-size: 10px;
+  margin-bottom: 10px;
+}
+
+/* Select variant - for target selection */
+.member-card-select {
+  padding: 8px 12px;
+}
+
+.member-card-select:hover {
+  background: linear-gradient(180deg, #2e5a8f 0%, #1a3959 100%);
+}
+
+/* Card List */
+.member-card-list {
+  display: flex;
+  gap: 10px;
+}
+
+.member-card-list-battle {
+  justify-content: center;
+}
+
+.member-card-list-compact {
+  flex-wrap: wrap;
+}
+
+.member-card-list-select {
+  flex-direction: column;
+  gap: 6px;
+}

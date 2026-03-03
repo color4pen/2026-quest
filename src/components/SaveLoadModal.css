@@ -1,0 +1,201 @@
+/* フルスクリーンオーバーレイ（タイトル画面などで使用） */
+.save-load-fullscreen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001;
+}
+
+.save-load-fullscreen-container {
+  background: linear-gradient(180deg, #2a2a4e 0%, #1a1a2e 100%);
+  border: 3px solid #0088cc;
+  border-radius: 12px;
+  box-shadow: 0 0 30px rgba(0, 136, 204, 0.3);
+}
+
+/* セーブ/ロードモーダル */
+.save-load-modal {
+  padding: 20px;
+  min-width: 400px;
+}
+
+.save-load-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  color: var(--text-light);
+  text-align: center;
+  margin: 0 0 20px 0;
+  padding-bottom: 15px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* スロットリスト */
+.save-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* セーブスロット */
+.save-slot {
+  font-family: 'Press Start 2P', monospace;
+  background: linear-gradient(180deg, rgba(0, 100, 150, 0.3) 0%, rgba(0, 50, 100, 0.3) 100%);
+  border: 2px solid var(--accent-primary);
+  border-radius: 8px;
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  color: var(--text-light);
+}
+
+.save-slot:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(0, 150, 200, 0.4) 0%, rgba(0, 100, 150, 0.4) 100%);
+  transform: translateX(5px);
+}
+
+.save-slot.selected {
+  border-color: #ffd700;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.save-slot.empty {
+  opacity: 0.6;
+}
+
+.save-slot:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* スロットヘッダー */
+.slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.slot-number {
+  font-size: 10px;
+  color: var(--accent-primary);
+}
+
+.slot-timestamp {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 空スロット */
+.slot-empty {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  padding: 5px 0;
+}
+
+/* スロット情報 */
+.slot-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slot-map {
+  font-size: 10px;
+  color: #4fc3f7;
+}
+
+.slot-leader {
+  font-size: 9px;
+  color: #81c784;
+}
+
+/* 戻るボタン */
+.save-load-back-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(180deg, #555 0%, #333 100%);
+  border: 2px solid #666;
+  border-radius: 6px;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.save-load-back-btn:hover {
+  background: linear-gradient(180deg, #666 0%, #444 100%);
+}
+
+/* 確認ダイアログ */
+.confirm-dialog-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.confirm-dialog {
+  background: linear-gradient(180deg, #2a2a4e 0%, #1a1a2e 100%);
+  border: 3px solid var(--accent-primary);
+  border-radius: 10px;
+  padding: 25px;
+  text-align: center;
+  max-width: 300px;
+}
+
+.confirm-dialog p {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--text-light);
+  line-height: 1.8;
+  margin: 0 0 20px 0;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.confirm-buttons button {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  padding: 10px 25px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.confirm-yes {
+  background: linear-gradient(180deg, var(--accent-primary) 0%, #0066aa 100%);
+  border: 2px solid var(--accent-primary);
+  color: white;
+}
+
+.confirm-yes:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 150, 255, 0.3);
+}
+
+.confirm-no {
+  background: linear-gradient(180deg, #555 0%, #333 100%);
+  border: 2px solid #666;
+  color: var(--text-light);
+}
+
+.confirm-no:hover {
+  background: linear-gradient(180deg, #666 0%, #444 100%);
+}

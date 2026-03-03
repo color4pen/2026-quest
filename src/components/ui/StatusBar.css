@@ -1,0 +1,62 @@
+/* Status Bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-bar-track {
+  flex: 1;
+  height: 8px;
+  background: #1a1a2e;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.status-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.status-bar-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: var(--text-light);
+  min-width: 60px;
+  text-align: right;
+}
+
+/* HP Bar */
+.status-bar-hp .status-bar-fill {
+  background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
+}
+
+/* MP Bar */
+.status-bar-mp .status-bar-fill {
+  background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
+}
+
+/* XP Bar */
+.status-bar-xp .status-bar-fill {
+  background: linear-gradient(90deg, #f1c40f 0%, #f39c12 100%);
+}
+
+/* Size Variants */
+.status-bar-small .status-bar-track {
+  height: 6px;
+}
+
+.status-bar-small .status-bar-text {
+  font-size: 7px;
+  min-width: 50px;
+}
+
+.status-bar-large .status-bar-track {
+  height: 12px;
+}
+
+.status-bar-large .status-bar-text {
+  font-size: 10px;
+  min-width: 70px;
+}
