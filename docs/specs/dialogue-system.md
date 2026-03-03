@@ -79,7 +79,8 @@ type DialogueAction =
   | { type: 'close' }                          // 会話を閉じる
   | { type: 'open_shop' }                      // ショップを開く
   | { type: 'heal'; cost: number }             // 回復（宿屋）
-  | { type: 'give_item'; item: ItemDefinition; quantity: number };  // アイテム付与
+  | { type: 'give_item'; item: ItemDefinitionData; quantity: number }  // アイテム付与
+  | { type: 'set_state'; key: string; value: number };  // ゲーム状態を設定
 ```
 
 ## DialogueEngine クラス
@@ -87,12 +88,33 @@ type DialogueAction =
 ### コンストラクタ
 
 ```typescript
-constructor(npc: NPC) {
+constructor(npc: NPC, gameState?: Record<string, number>) {
   this.npc = npc;
-  this.currentNode = this.findNode(npc.dialogue.startId);
+  // 条件に基づいて開始ノードを決定（conditionalStartIds があれば評価）
+  const startId = this.determineStartId();
+  this.currentNode = this.findNode(startId);
   this.isComplete = false;
 }
 ```
+
+### 条件付き開始ノード
+
+NPCに `conditionalStartIds` を設定すると、ゲーム状態に応じて会話の開始ノードを切り替えられる。
+
+```typescript
+interface ConditionalStartId {
+  conditions: StateCondition[];  // 全てANDで評価
+  startId: string;               // 条件を満たした場合の開始ノード
+}
+
+interface StateCondition {
+  key: string;                   // ゲーム状態のキー
+  op: '==' | '!=' | '>' | '<' | '>=' | '<=';
+  value: number;
+}
+```
+
+条件は先頭から順に評価され、最初にマッチした `startId` が使われる。どれもマッチしなければ `dialogue.startId` にフォールバック。
 
 ### コールバック設定
 
@@ -101,7 +123,16 @@ setCallbacks(callbacks: {
   onDialogueEnd?: () => void;           // 会話終了時
   onOpenShop?: (npc: NPC) => void;      // ショップを開く時
   onHeal?: (cost: number) => boolean;   // 回復時（成否を返す）
+  onSetState?: GameStateSetter;         // ゲーム状態を設定する時
+  onGiveItem?: (item: ItemDefinitionData, quantity: number) => void;  // アイテム付与時
 }): void
+```
+
+### 型エイリアス
+
+```typescript
+type GameStateGetter = (key: string) => number;
+type GameStateSetter = (key: string, value: number) => void;
 ```
 
 ### 選択肢処理
@@ -129,6 +160,30 @@ selectChoice(choice: DialogueChoice): DialogueResult {
         this.goToNode('no_money');
       }
       return { action, shouldClose: false };
+
+    case 'set_state':
+      // ゲーム状態を設定し、次のノードへ（なければ会話終了）
+      this.onSetState?.(action.key, action.value);
+      if (choice.nextDialogueId) {
+        this.goToNode(choice.nextDialogueId);
+        return { action, shouldClose: false };
+      } else {
+        this.isComplete = true;
+        this.onDialogueEnd?.();
+        return { action, shouldClose: true };
+      }
+
+    case 'give_item':
+      // アイテムを付与し、次のノードへ（なければ会話終了）
+      this.onGiveItem?.(action.item, action.quantity);
+      if (choice.nextDialogueId) {
+        this.goToNode(choice.nextDialogueId);
+        return { action, shouldClose: false };
+      } else {
+        this.isComplete = true;
+        this.onDialogueEnd?.();
+        return { action, shouldClose: true };
+      }
 
     case 'none':
     default:
@@ -173,6 +228,8 @@ interface DialogueState {
    ├─ close → 会話終了
    ├─ open_shop → ShopModal を開く
    ├─ heal → 成否で分岐
+   ├─ set_state → ゲーム状態更新 → 次ノードor終了
+   ├─ give_item → アイテム付与 → 次ノードor終了
    └─ none → 次のノードへ
    │
 7. shouldClose が true なら会話終了
@@ -392,7 +449,7 @@ interface ShopState {
 }
 
 interface ShopItem {
-  item: ItemDefinition;
+  item: ItemDefinitionData;
   price: number;
   stock: number;  // -1 = 無限
 }

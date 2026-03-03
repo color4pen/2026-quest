@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PartyState, InventoryItemState, PartyMemberState, CLASS_NAMES, SLOT_NAMES, EquipmentSlot } from '../types/game';
 import { SaveSlotInfo } from '../types/save';
 import { SaveLoadModal } from './SaveLoadModal';
@@ -29,6 +29,13 @@ export function PauseMenu({ party, saveSlots, onResume, onSaveToSlot, onLoadFrom
   const [selectedSlot, setSelectedSlot] = useState<EquipmentSlot | null>(null);
 
   const selectedMember = party.members[selectedMemberIndex];
+  const messageTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => {
+      if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    };
+  }, []);
 
   const handleUseItem = (inv: InventoryItemState) => {
     if (!selectedMember) return;
@@ -39,7 +46,8 @@ export function PauseMenu({ party, saveSlots, onResume, onSaveToSlot, onLoadFrom
       ? `${selectedMember.name}に${inv.item.name}を使った！`
       : result.message
     );
-    setTimeout(() => setMessage(null), 2000);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setMessage(null), 2000);
   };
 
   // メニュー項目定義（優先順位順）
@@ -265,7 +273,8 @@ export function PauseMenu({ party, saveSlots, onResume, onSaveToSlot, onLoadFrom
     if (!selectedMember) return;
     const result = onEquipItem(selectedMember.id, itemId);
     setMessage(result.message);
-    setTimeout(() => setMessage(null), 2000);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setMessage(null), 2000);
     if (result.success) {
       setEquipSubView('slots');
       setSelectedSlot(null);
@@ -277,7 +286,8 @@ export function PauseMenu({ party, saveSlots, onResume, onSaveToSlot, onLoadFrom
     if (!selectedMember) return;
     const result = onUnequipItem(selectedMember.id, slot);
     setMessage(result.message);
-    setTimeout(() => setMessage(null), 2000);
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current);
+    messageTimerRef.current = setTimeout(() => setMessage(null), 2000);
   };
 
   // そうびメニュー

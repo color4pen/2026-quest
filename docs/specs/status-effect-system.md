@@ -161,7 +161,7 @@ interface StatusEffectResult {
 ```typescript
 onTurnEnd(target: PartyMember): StatusEffectResult | null {
   const damage = Math.max(1, Math.floor(target.maxHp * 0.1));
-  target.hp = Math.max(0, target.hp - damage);
+  target.takeDamageRaw(damage);  // 防御計算なしで直接ダメージ
   return {
     damage,
     message: `${target.name}は毒のダメージを${damage}受けた！`,
@@ -187,6 +187,9 @@ onTurnEnd(target: PartyMember): StatusEffectResult | null {
 ```typescript
 class PartyMember {
   private statusEffects: StatusEffect[] = [];
+
+  // 防御計算なしでダメージを受ける（状態異常用）
+  takeDamageRaw(amount: number): void;
 
   // 状態異常を追加
   addStatusEffect(type: StatusEffectType, duration?: number): boolean;

@@ -34,6 +34,7 @@ src/models/
 │ # _active: boolean                            │   │             │
 ├─────────────────────────────────────────────────────────────────┤
 │ + x, y: number (shortcuts)                    │   │             │
+│ + zIndex: number (renderer委譲)               │   │             │
 │ + render(ctx, camera): void                   │   │             │
 │ + isInViewport(camera): boolean               │   │             │
 │ + update(deltaTime): void                     │   │             │
@@ -165,30 +166,31 @@ function isInteractable(obj: unknown): obj is Interactable;
 
 ### Player
 
-プレイヤーキャラクター。Interactableは実装しない（他から操作される側）。
+プレイヤーキャラクター。移動と描画のみを担当するシンプルなエンティティ。
+バトル関連のステータス（HP/MP/攻撃力等）は全て `PartyMember` が管理する。
 
 ```typescript
 class Player extends GameObject {
   renderer = new PlayerRenderer(this.transform);
 
-  // プレイヤー固有の機能
-  hp, maxHp, mp, maxMp, attack, level, xp: number;
-  skills: SkillDefinition[];
-
-  move(direction: Direction): void;
-  takeDamage(amount: number): number;
-  heal(amount: number): number;
-  gainXp(amount: number): boolean;  // レベルアップ判定
+  getNextPosition(direction: Direction): Position;
+  moveTo(position: { x: number; y: number }): void;
+  setPosition(x: number, y: number): void;
+  reset(x: number, y: number): void;
+  getState(): PlayerState;  // GameObjectState と同一
 }
+
+type PlayerState = GameObjectState;  // { id, x, y, active }
 ```
 
 ### Enemy（敵）
 
-敵キャラクター。バトルを開始するInteractable。
+敵キャラクター。バトルを開始するInteractable。HPは `HitPoints` 値オブジェクトで管理。
 
 ```typescript
 class Enemy extends GameObject implements Interactable {
   renderer = new EnemyRenderer(this.transform);
+  private _hp: HitPoints;           // HP値オブジェクト（getter で number を返す）
   battleConfig: EnemyBattleConfig;  // AI設定、ステータス倍率等
 
   onInteract(): InteractionResult {

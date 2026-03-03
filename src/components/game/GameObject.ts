@@ -39,6 +39,9 @@ export abstract class GameObject {
   get active(): boolean { return this._active; }
   set active(value: boolean) { this._active = value; }
 
+  // 描画順序
+  get zIndex(): number { return this.renderer?.zIndex ?? 0; }
+
   /**
    * 指定座標にいるか判定
    */

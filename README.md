@@ -183,14 +183,30 @@ npm run build
 
 ## ドキュメント
 
-詳細な設計ドキュメントは `docs/` フォルダを参照：
+詳細な設計ドキュメントは `docs/specs/` フォルダを参照：
 
-- [バトルシステム](docs/battle-system.md)
-- [ダイアログシステム](docs/dialogue-system.md)
-- [アイテムシステム](docs/item-system.md)
-- [ステータス効果システム](docs/status-effect-system.md)
-- [ゲームオブジェクトシステム](docs/game-object-system.md)
-- [マップシステム](docs/map-system.md)
+### コアシステム
+- [ゲームエンジン](docs/specs/game-engine.md) — 全体オーケストレーター・移動・インタラクション・委譲
+- [ゲームオブジェクトシステム](docs/specs/game-object-system.md) — GameObject/Transform/Renderer 基盤
+- [バトルシステム](docs/specs/battle-system.md) — ターン制戦闘エンジン
+- [戦闘計算システム](docs/specs/combat-calculator.md) — ダメージ・回復量の計算ロジック
+- [パーティシステム](docs/specs/party-system.md) — Party/PartyMember/Inventory 管理
+- [マップシステム](docs/specs/map-system.md) — マップ定義・ワープ・エンカウント・通行条件
+
+### サブシステム
+- [アイテムシステム](docs/specs/item-system.md) — アイテム定義・Factory・装備
+- [ステータス効果システム](docs/specs/status-effect-system.md) — 毒・インフルエンザ等の状態異常
+- [ダイアログシステム](docs/specs/dialogue-system.md) — NPC会話・選択肢・条件分岐
+- [ゲーム状態管理](docs/specs/game-state-system.md) — クエストフラグ・進行度管理
+- [セーブ/ロードシステム](docs/specs/save-system.md) — localStorage永続化・バージョン管理
+- [値オブジェクト](docs/specs/value-objects.md) — HitPoints/ManaPoints/Gold/EquipmentStatBlock
+
+### 表示・UI
+- [描画システム](docs/specs/rendering-system.md) — Canvas 2D描画・カメラ・カリング
+- [UIコンポーネント](docs/specs/ui-components.md) — React UI設計・useGameEngineフック
+
+### データ定義
+- [ゲームデータ定義](docs/specs/game-data.md) — キャラクター・スキル・アイテムID・初期設定
 
 ## ライセンス
 

@@ -15,6 +15,7 @@ import {
 import { GameEngineState } from '../engine/GameEngine';
 import { PartyMemberState } from '../types/party';
 import { MAPS } from '../data/maps';
+import { getPartyMemberDefinition } from '../data/partyMembers';
 
 export class SaveManager {
   /**
@@ -36,7 +37,7 @@ export class SaveManager {
             isEmpty: false,
             timestamp: saveData.timestamp,
             mapName: this.getMapNameFromId(saveData.currentMapId),
-            leaderName: leader?.definitionId ?? null,
+            leaderName: leader ? (getPartyMemberDefinition(leader.definitionId)?.name ?? leader.definitionId) : null,
             leaderLevel: leader?.level ?? null,
           });
         } catch {

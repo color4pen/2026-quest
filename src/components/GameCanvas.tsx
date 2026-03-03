@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { TileType, GrassDecoration, TILE_SIZE, CameraState } from '../types/game';
 
 // タイル画像をロード
@@ -24,6 +24,11 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
 
   const mapHeight = map.tiles.length;
   const mapWidth = map.tiles[0]?.length ?? 20;
+
+  const sortedObjects = useMemo(
+    () => [...gameObjects].sort((a, b) => a.zIndex - b.zIndex),
+    [gameObjects],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -56,12 +61,6 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
     }
 
     // GameObjectを描画（ビューポート内のみ）
-    const sortedObjects = [...gameObjects].sort((a, b) => {
-      const aRenderer = (a as unknown as { renderer?: { zIndex: number } }).renderer;
-      const bRenderer = (b as unknown as { renderer?: { zIndex: number } }).renderer;
-      return (aRenderer?.zIndex ?? 0) - (bRenderer?.zIndex ?? 0);
-    });
-
     sortedObjects.forEach(obj => {
       if (obj.active && obj.isInViewport(camera)) {
         obj.render(ctx, camera);

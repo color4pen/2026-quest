@@ -48,8 +48,8 @@
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                      ターン終了処理                          │
-│  - 防御状態リセット                                         │
-│  - 状態異常ダメージ（毒など）                                │
+│  - 状態異常ダメージ（毒など）— 防御状態を反映                │
+│  - 防御状態リセット（状態異常処理後）                        │
 │  - 全滅チェック                                             │
 │  - 次のターンへ                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -84,6 +84,7 @@ class BattleEngine {
   private currentEnemyTurnIndex: number;   // 現在の敵インデックス
   private actionQueue: PartyMemberAction[]; // 行動キュー
   private pendingAction: {...} | null;     // 保留中のアクション
+  private pendingTimers: ReturnType<typeof setTimeout>[]; // アニメーション用タイマー管理
 }
 ```
 
@@ -161,7 +162,7 @@ interface SkillDefinition {
 
 ```typescript
 private executeDefend(member: PartyMember): void {
-  member.isDefending = true;
+  member.defend();  // private _isDefending を true にセット
   // ダメージ半減
 }
 ```
@@ -321,6 +322,37 @@ skills: [
   ...existingSkills,
   { id: 'ice_blast', ... },
 ]
+```
+
+## タイマー管理
+
+アクション間の遅延に `setTimeout` を使用する。バトル終了時にタイマーが残らないよう管理する。
+
+```typescript
+// 遅延実行をスケジュール（タイマーID管理付き）
+private scheduleAction(callback: () => void, delay: number): void;
+
+// 未実行のタイマーを全てクリア（バトル終了時に呼び出し）
+private clearPendingTimers(): void;
+```
+
+## Observer パターン
+
+`subscribe()` でリスナーを登録し、状態変更時に `notifyListeners()` で通知する。
+リスナー内で例外が発生しても後続のリスナーに通知されるよう、各リスナー呼び出しを `try-catch` で囲む。
+
+```typescript
+private notifyListeners(): void {
+  this.markDirty();
+  const state = this.getState();
+  this.listeners.forEach(listener => {
+    try {
+      listener(state);
+    } catch (e) {
+      console.error('Listener error:', e);
+    }
+  });
+}
 ```
 
 ## 関連ファイル

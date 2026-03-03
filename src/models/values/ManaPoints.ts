@@ -17,7 +17,7 @@ export class ManaPoints {
 
   /** 指定 current/max で生成 */
   static of(current: number, max: number): ManaPoints {
-    return new ManaPoints(current, max);
+    return new ManaPoints(Math.max(0, current), max);
   }
 
   /** MP を消費した新しい ManaPoints を返す。足りなければ null */

@@ -28,17 +28,17 @@ export class PartyMember {
   // ステータス（値オブジェクトで管理）
   private _hp: HitPoints;
   private _mp: ManaPoints;
-  public level: number;
-  public xp: number;
-  public xpToNext: number;
-  public attack: number;
-  public skills: SkillDefinition[];
+  private _level: number;
+  private _xp: number;
+  private _xpToNext: number;
+  private _attack: number;
+  private _skills: SkillDefinition[];
 
   // バトル用フラグ
-  public isDefending: boolean = false;
+  private _isDefending: boolean = false;
 
   // 基本防御力
-  public baseDefense: number = 0;
+  private _baseDefense: number = 0;
 
   // 装備スロット
   private equipment: {
@@ -66,15 +66,15 @@ export class PartyMember {
     // HP/MP を値オブジェクトで初期化
     this._hp = HitPoints.create(definition.baseStats.maxHp);
     this._mp = ManaPoints.create(definition.baseStats.maxMp);
-    this.attack = definition.baseStats.attack;
+    this._attack = definition.baseStats.attack;
 
     // レベル・経験値
-    this.level = 1;
-    this.xp = 0;
-    this.xpToNext = 100;
+    this._level = 1;
+    this._xp = 0;
+    this._xpToNext = 100;
 
     // スキル
-    this.skills = [...definition.skills];
+    this._skills = [...definition.skills];
 
     // レベルアップボーナス
     this.levelUpBonus = definition.levelUpBonus ?? {
@@ -84,12 +84,19 @@ export class PartyMember {
     };
   }
 
-  // ==================== HP/MP getter（後方互換性） ====================
+  // ==================== getter ====================
 
   get hp(): number { return this._hp.current; }
   get maxHp(): number { return this._hp.max; }
   get mp(): number { return this._mp.current; }
   get maxMp(): number { return this._mp.max; }
+  get level(): number { return this._level; }
+  get xp(): number { return this._xp; }
+  get xpToNext(): number { return this._xpToNext; }
+  get attack(): number { return this._attack; }
+  get isDefending(): boolean { return this._isDefending; }
+  get baseDefense(): number { return this._baseDefense; }
+  get skills(): SkillDefinition[] { return [...this._skills]; }
 
   // ==================== 戦闘関連 ====================
 
@@ -193,9 +200,9 @@ export class PartyMember {
    * @returns レベルアップしたかどうか
    */
   gainXp(amount: number): boolean {
-    this.xp += amount;
+    this._xp += amount;
 
-    if (this.xp >= this.xpToNext) {
+    if (this._xp >= this._xpToNext) {
       this.levelUp();
       return true;
     }
@@ -207,14 +214,14 @@ export class PartyMember {
    * レベルアップ処理
    */
   private levelUp(): void {
-    this.level++;
-    this.xp -= this.xpToNext;
-    this.xpToNext = Math.floor(this.xpToNext * DEFAULT_LEVEL_UP_BONUS.xpMultiplier);
+    this._level++;
+    this._xp -= this._xpToNext;
+    this._xpToNext = Math.floor(this._xpToNext * DEFAULT_LEVEL_UP_BONUS.xpMultiplier);
 
     // ステータス上昇 + 全回復
     this._hp = HitPoints.create(this._hp.max + this.levelUpBonus.hp);
     this._mp = ManaPoints.create(this._mp.max + this.levelUpBonus.mp);
-    this.attack += this.levelUpBonus.attack;
+    this._attack += this.levelUpBonus.attack;
   }
 
   /**
@@ -222,16 +229,16 @@ export class PartyMember {
    */
   recoverAfterBattle(): void {
     this.restoreMp(5);
-    this.isDefending = false;
+    this._isDefending = false;
   }
 
   /**
    * 全回復
    */
   fullRecover(): void {
-    this._hp = this._hp.fullRestore();
-    this._mp = this._mp.fullRestore();
-    this.isDefending = false;
+    this._hp = HitPoints.of(this.getEffectiveMaxHp(), this._hp.max);
+    this._mp = ManaPoints.of(this.getEffectiveMaxMp(), this._mp.max);
+    this._isDefending = false;
     this.clearAllStatusEffects();
   }
 
@@ -239,7 +246,14 @@ export class PartyMember {
    * 防御状態をリセット
    */
   resetDefend(): void {
-    this.isDefending = false;
+    this._isDefending = false;
+  }
+
+  /**
+   * 防御状態にする
+   */
+  defend(): void {
+    this._isDefending = true;
   }
 
   // ==================== 状態異常システム ====================
@@ -381,14 +395,14 @@ export class PartyMember {
    * 装備込みの攻撃力を取得
    */
   getEffectiveAttack(): number {
-    return this.attack + this.getEquipmentBonuses().attack;
+    return this._attack + this.getEquipmentBonuses().attack;
   }
 
   /**
    * 装備込みの防御力を取得
    */
   getEffectiveDefense(): number {
-    return this.baseDefense + this.getEquipmentBonuses().defense;
+    return this._baseDefense + this.getEquipmentBonuses().defense;
   }
 
   /**
@@ -455,11 +469,11 @@ export class PartyMember {
   ): void {
     this._hp = HitPoints.of(hp, baseMaxHp);
     this._mp = ManaPoints.of(mp, baseMaxMp);
-    this.level = level;
-    this.xp = xp;
-    this.xpToNext = xpToNext;
-    this.attack = baseAttack;
-    this.baseDefense = baseDefense;
+    this._level = level;
+    this._xp = xp;
+    this._xpToNext = xpToNext;
+    this._attack = baseAttack;
+    this._baseDefense = baseDefense;
   }
 
   /**
@@ -480,9 +494,9 @@ export class PartyMember {
       xpToNext: this.xpToNext,
       attack: this.getEffectiveAttack(),
       defense: this.getEffectiveDefense(),
-      skills: [...this.skills],
+      skills: [...this._skills],
       isAlive: this._hp.isAlive,
-      isDefending: this.isDefending,
+      isDefending: this._isDefending,
       isPoisoned: this.isPoisoned,
       statusEffects: this.getStatusEffectInfos(),
       equipment: this.getEquipmentState(),

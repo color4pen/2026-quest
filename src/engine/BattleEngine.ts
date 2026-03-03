@@ -32,6 +32,9 @@ export class BattleEngine {
   private listeners: Set<BattleEventListener>;
   private onBattleEnd: ((result: BattleResult, enemies: Enemy[]) => void) | null;
 
+  // アニメーション用タイマー管理
+  private pendingTimers: ReturnType<typeof setTimeout>[] = [];
+
   // 状態キャッシュ（パフォーマンス最適化）
   private stateCache: BattleState | null = null;
   private stateDirty: boolean = true;
@@ -386,6 +389,7 @@ export class BattleEngine {
     if (this.getAliveEnemies().length === 0) {
       this.result = 'victory';
       this.phase = 'battle_end';
+      this.clearPendingTimers();
       this.addLog('戦闘に勝利した！', 'system');
       this.onBattleEnd?.(this.result, this.enemies);
       this.notifyListeners();
@@ -393,7 +397,7 @@ export class BattleEngine {
     }
 
     // 次の行動へ（遅延付き）
-    setTimeout(() => {
+    this.scheduleAction(() => {
       this.executeNextPartyAction();
       this.notifyListeners();
     }, 400);
@@ -500,7 +504,7 @@ export class BattleEngine {
    * 防御を実行
    */
   private executeDefend(member: PartyMember): void {
-    member.isDefending = true;
+    member.defend();
     this.addLog(`${member.name}は防御の構えをとった！`, 'player');
   }
 
@@ -542,6 +546,7 @@ export class BattleEngine {
     if (aliveMembers.length === 0) {
       this.result = 'defeat';
       this.phase = 'battle_end';
+      this.clearPendingTimers();
       this.addLog('敗北した...', 'system');
       this.onBattleEnd?.(this.result, this.enemies);
       this.notifyListeners();
@@ -583,6 +588,7 @@ export class BattleEngine {
     if (this.party.isAllDead()) {
       this.result = 'defeat';
       this.phase = 'battle_end';
+      this.clearPendingTimers();
       this.addLog('敗北した...', 'system');
       this.onBattleEnd?.(this.result, this.enemies);
       this.notifyListeners();
@@ -592,7 +598,7 @@ export class BattleEngine {
     // 次の敵へ
     this.currentEnemyTurnIndex++;
 
-    setTimeout(() => {
+    this.scheduleAction(() => {
       this.executeNextEnemyTurn();
       this.notifyListeners();
     }, 300);
@@ -602,19 +608,21 @@ export class BattleEngine {
    * 敵フェーズ終了
    */
   private finishEnemyPhase(): void {
-    // 全員の防御状態をリセット
-    this.party.resetAllDefend();
     this.selectedCommand = null;
     this.selectedTargetIndex = null;
     this.actionQueue = [];
 
-    // 状態異常のターン終了処理（毒ダメージなど）
+    // 状態異常のターン終了処理（毒ダメージなど）— 防御状態を反映するため先に処理
     this.processStatusEffects();
+
+    // 防御状態をリセット（状態異常処理後）
+    this.party.resetAllDefend();
 
     // パーティー全滅チェック
     if (this.party.isAllDead()) {
       this.result = 'defeat';
       this.phase = 'battle_end';
+      this.clearPendingTimers();
       this.addLog('敗北した...', 'system');
       this.onBattleEnd?.(this.result, this.enemies);
       this.notifyListeners();
@@ -748,11 +756,36 @@ export class BattleEngine {
   }
 
   /**
+   * 遅延実行をスケジュール（タイマー管理付き）
+   */
+  private scheduleAction(callback: () => void, delay: number): void {
+    const timerId = setTimeout(() => {
+      this.pendingTimers = this.pendingTimers.filter(id => id !== timerId);
+      callback();
+    }, delay);
+    this.pendingTimers.push(timerId);
+  }
+
+  /**
+   * 未実行のタイマーを全てクリア
+   */
+  private clearPendingTimers(): void {
+    this.pendingTimers.forEach(id => clearTimeout(id));
+    this.pendingTimers = [];
+  }
+
+  /**
    * リスナーに通知
    */
   private notifyListeners(): void {
     this.markDirty();
     const state = this.getState();
-    this.listeners.forEach(listener => listener(state));
+    this.listeners.forEach(listener => {
+      try {
+        listener(state);
+      } catch (e) {
+        console.error('Listener error:', e);
+      }
+    });
   }
 }

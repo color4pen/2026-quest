@@ -158,12 +158,6 @@ export interface ItemDefinition {
   cureEffect?: StatusEffectType;  // cure時に治療する状態異常
 }
 
-// プレイヤーのアイテム所持
-export interface InventoryItem {
-  item: ItemDefinition;
-  quantity: number;
-}
-
 // バトルログエントリ
 export interface BattleLogEntry {
   id: number;

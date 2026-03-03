@@ -8,13 +8,14 @@
 
 ```
 src/models/items/
-├── index.ts          # エクスポート
-├── Item.ts           # 抽象基底クラス
-├── HealItem.ts       # HP回復アイテム
-├── CureItem.ts       # 状態異常治療アイテム
-├── DamageItem.ts     # ダメージアイテム
-├── ValuableItem.ts   # 貴重品
-└── ItemFactory.ts    # アイテム生成ファクトリー
+├── index.ts           # エクスポート
+├── Item.ts            # 抽象基底クラス
+├── HealItem.ts        # HP回復アイテム
+├── CureItem.ts        # 状態異常治療アイテム
+├── DamageItem.ts      # ダメージアイテム
+├── ValuableItem.ts    # 貴重品
+├── EquipmentItem.ts   # 装備品（武器・防具・装飾品）
+└── ItemFactory.ts     # アイテム生成ファクトリー
 ```
 
 ## クラス図
@@ -36,21 +37,15 @@ src/models/items/
                     │ isTargetAlly()  │
                     └────────┬────────┘
                              │
-        ┌────────────────────┼────────────────────┐
-        │                    │                    │
-        ▼                    ▼                    ▼
-┌───────────────┐  ┌───────────────┐  ┌───────────────┐
-│   HealItem    │  │   CureItem    │  │  DamageItem   │
-├───────────────┤  ├───────────────┤  ├───────────────┤
-│ healAmount    │  │ cureEffect    │  │ damage        │
-└───────────────┘  └───────────────┘  └───────────────┘
-                            │
-                            ▼
-                   ┌───────────────┐
-                   │ ValuableItem  │
-                   ├───────────────┤
-                   │ (使用不可)     │
-                   └───────────────┘
+        ┌──────────┬─────────┼─────────┬──────────┐
+        │          │         │         │          │
+        ▼          ▼         ▼         ▼          ▼
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐
+│ HealItem │ │ CureItem │ │DamageItem│ │Valuable  │ │EquipmentItem │
+├──────────┤ ├──────────┤ ├──────────┤ │  Item    │ ├──────────────┤
+│healAmount│ │cureEffect│ │ damage   │ ├──────────┤ │ slot         │
+└──────────┘ └──────────┘ └──────────┘ │(使用不可) │ │ stats        │
+                                       └──────────┘ └──────────────┘
 ```
 
 ## 基底クラス: Item
@@ -182,6 +177,27 @@ class ValuableItem extends Item {
 ```
 
 **使用例**: カメラ（コレクション用）
+
+### EquipmentItem（装備品）
+
+```typescript
+class EquipmentItem extends Item {
+  readonly type = 'equipment';
+  readonly slot: EquipmentSlot;   // 'weapon' | 'armor' | 'accessory'
+  readonly stats: EquipmentStats; // { attack?, defense?, maxHp?, maxMp? }
+
+  canUseInMenu() { return false; }   // 「そうび」メニューから装備
+  canUseInBattle() { return false; } // 戦闘中は装備変更不可
+
+  getStatsDescription(): string;     // "攻撃+5 防御+3" 等
+  getEquipmentInfo(): {...};         // シリアライズ用
+}
+```
+
+装備品は通常のアイテム使用フローではなく、`PartyMember.equip()` / `unequip()` で管理する。
+装備によるステータス変化は `EquipmentStatBlock` 値オブジェクトで集約計算される。
+
+**使用例**: 鉄の剣（攻撃+5）、鉄の鎧（防御+3, HP+10）
 
 ## ItemFactory
 

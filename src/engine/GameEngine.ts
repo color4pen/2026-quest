@@ -747,7 +747,13 @@ export class GameEngine {
   private notifyListeners(): void {
     this.markDirty();
     const state = this.getState();
-    this.listeners.forEach(listener => listener(state));
+    this.listeners.forEach(listener => {
+      try {
+        listener(state);
+      } catch (e) {
+        console.error('Listener error:', e);
+      }
+    });
   }
 
   // ==================== パーティー管理 ====================
