@@ -15,6 +15,7 @@ import {
   DefendAction,
   SkillAction,
   ItemAction,
+  type Action,
   type ActionContext,
   type ActionLog,
 } from '../models/actions';
@@ -414,7 +415,7 @@ export class BattleEngine {
   private resolveAction(
     member: PartyMember,
     action: PartyMemberAction
-  ): { action: AttackAction | SkillAction | ItemAction | DefendAction; target: PartyMember | Enemy | null } | null {
+  ): { action: Action; target: PartyMember | Enemy | null } | null {
     switch (action.command) {
       case 'attack': {
         const target = this.enemies[action.targetIndex!];
@@ -422,7 +423,7 @@ export class BattleEngine {
         // 装備から付与された攻撃アクションがあればそれを使用
         const available = member.getAvailableActions();
         const equipAttack = available.find(a => a.type === 'attack' && a.id !== 'attack');
-        return { action: (equipAttack as AttackAction) ?? new AttackAction(), target };
+        return { action: equipAttack ?? new AttackAction(), target };
       }
       case 'skill': {
         const skill = action.skill!;
