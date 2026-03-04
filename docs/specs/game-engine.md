@@ -8,12 +8,12 @@ GameEngine はゲーム全体のオーケストレーター。プレイヤー移
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                        GameEngine                             │
+│                    GameEngine（ファサード）                     │
 │                                                               │
-│  ┌─────────┐  ┌───────┐  ┌──────────────┐  ┌─────────────┐  │
-│  │ Player  │  │ Party │  │GameStateMgr  │  │  GameMap     │  │
-│  │(移動用) │  │(戦闘用)│  │(フラグ管理)  │  │(タイル/ワープ)│  │
-│  └─────────┘  └───────┘  └──────────────┘  └─────────────┘  │
+│  ┌─────────┐  ┌───────┐  ┌──────────────┐                   │
+│  │ Player  │  │ Party │  │GameStateMgr  │                   │
+│  │(移動用) │  │(戦闘用)│  │(フラグ管理)  │                   │
+│  └─────────┘  └───────┘  └──────────────┘                   │
 │                                                               │
 │  ┌─────────────────────────────────────────────────────┐     │
 │  │  GamePhase (tagged union: 排他的状態管理)            │     │
@@ -21,9 +21,15 @@ GameEngine はゲーム全体のオーケストレーター。プレイヤー移
 │  │  | shop(State) | game_over                          │     │
 │  └─────────────────────────────────────────────────────┘     │
 │                                                               │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐               │
-│  │  NPCs[]  │  │Treasures[]│  │FixedEnemies[]│               │
-│  └──────────┘  └──────────┘  └──────────────┘               │
+│  ┌──────────────┐  ┌───────────────────┐                     │
+│  │ MapManager   │  │ EncounterManager  │                     │
+│  │(マップ/NPC/  │  │(エンカウント判定/ │                     │
+│  │ 宝箱/固定敵) │  │ 敵生成)           │                     │
+│  └──────────────┘  └───────────────────┘                     │
+│  ┌──────────────────────┐  ┌───────────────┐                 │
+│  │ InteractionHandler   │  │ CameraManager │                 │
+│  │(インタラクション検出)│  │(カメラ追従)   │                 │
+│  └──────────────────────┘  └───────────────┘                 │
 │                                                               │
 │  Observer: Set<GameEventListener>                             │
 └───────────────────────┬───────────────────────────────────────┘
@@ -132,17 +138,10 @@ loadMap(mapId: string, playerX?: number, playerY?: number, skipCache?: boolean):
 ### 処理フロー
 
 ```
-1. MapDefinition を MAPS[mapId] から取得
-2. skipCache でなければ現在マップの宝箱状態をキャッシュ
-3. currentMapId を更新
-4. GameMap.loadFromDefinition(mapDef)
-5. プレイヤー位置を設定（引数 or mapDef.playerStart）
-6. NPC を NPC_DEFINITIONS から生成・配置
-7. 宝箱を MapDefinition.treasures から生成・配置
-8. キャッシュされた宝箱状態を適用（applyTreasureStates）
-9. 固定敵をスポーン条件付きで生成（spawnFixedEnemies）
-10. 到着メッセージを追加
-11. カメラをプレイヤー位置に追従
+1. MapManager.loadMap() に委譲（マップ定義取得・NPC/宝箱/固定敵配置・宝箱キャッシュ適用）
+2. プレイヤー位置を設定（MapManager が返す startX/startY）
+3. 到着メッセージを追加
+4. CameraManager.update() でカメラ追従
 ```
 
 ### skipCache パラメータ
@@ -166,40 +165,31 @@ move(direction: Direction): void
 2. 次の位置を計算（player.getNextPosition）
 3. マップ通行チェック（壁・範囲外）
 4. 条件付き扉の通過チェック（door.canPass(party)）
-5. インタラクション対象の検索
-   ├─ NPC → 会話開始（return）
-   ├─ 宝箱 → ゴールド獲得
-   ├─ 固定敵 → バトル開始（return）
-   └─ blockMovement なら return
+5. InteractionHandler.check() でインタラクション検出
+   ├─ dialogue → 会話開始（return）
+   ├─ treasure → ゴールド獲得
+   ├─ battle → バトル開始（return）
+   └─ blocked → return
 6. 移動実行（player.moveTo）
-7. カメラ追従
+7. CameraManager.update() でカメラ追従
 8. ワープポイントチェック → 該当すれば loadMap
-9. エンカウント判定
+9. EncounterManager.checkEncounter() でエンカウント判定
 ```
 
-## インタラクションシステム
+## インタラクションシステム（InteractionHandler）
 
-### 対象オブジェクト収集
+`InteractionHandler.check()` が対象オブジェクト・位置・プレイヤーを受け取り、型付き結果を返す:
 
 ```typescript
-private getAllInteractableObjects(): GameObject[] {
-  return [
-    ...this.npcs,
-    ...this.treasures.filter(t => !t.isOpened()),
-    ...this.fixedEnemies.filter(e => !e.isDead()),
-  ];
-}
+type InteractionResult =
+  | { type: 'dialogue'; npc: NPC }
+  | { type: 'treasure'; gold: number }
+  | { type: 'battle'; enemy: Enemy }
+  | { type: 'blocked' }
+  | { type: 'none' };
 ```
 
-### InteractionResult のハンドリング
-
-| type | 処理 |
-|------|------|
-| `dialogue` | `startDialogue(npc)` — DialogueEngine を起動 |
-| `treasure` | `party.addGold(gold)` — ゴールド加算＋メッセージ |
-| `battle` | `startBattle([enemy])` — BattleEngine を起動 |
-
-`blockMovement: true` の場合、移動をキャンセルして即 return。
+GameEngine は結果の `type` で switch し、会話/バトル開始やゴールド加算を行う。
 
 ## バトル委譲
 
@@ -286,79 +276,40 @@ public buyItem(shopItem: ShopItem): boolean
 3. `party.spendGold()` + `party.addItemById()`
 4. 在庫デクリメント
 
-## カメラシステム
+## カメラシステム（CameraManager）
 
-```typescript
-private updateCamera(): void
-```
+`CameraManager.update(playerX, playerY, mapWidth, mapHeight)` に委譲。プレイヤー位置を中心に、マップ端でクランプ。マップがビューポートより小さい場合は中央に固定。
 
-プレイヤー位置を中心に、マップ端でクランプ。マップがビューポートより小さい場合は中央に固定。
+## エンカウントシステム（EncounterManager）
 
-```
-cameraX = clamp(halfW, playerX, mapWidth - halfW)
-cameraY = clamp(halfH, playerY, mapHeight - halfH)
-```
+`EncounterManager.checkEncounter(encounter, leaderLevel)` に委譲。
 
-## エンカウントシステム
+1. デバッグモード（`?mode=debug`）なら null
+2. エンカウント設定なしなら null
+3. `Math.random() > rate` なら null
+4. 1〜3体のランダム敵を生成して返す
 
-```typescript
-private checkEncounter(position): void
-```
+GameEngine は返された敵配列で `startBattle()` を呼ぶ。
 
-1. デバッグモードなら skip
-2. `gameMap.getEncounter()` でエンカウント設定を取得
-3. `Math.random() > rate` なら skip
-4. 1〜3体のランダム敵を生成（パーティーリーダーのレベル基準）
-5. バトル開始
+## マップ管理（MapManager）
 
-### デバッグモード
+マップ読み込み・NPC/宝箱/固定敵の配置・宝箱状態キャッシュを管理。
 
-```typescript
-private isDebugMode(): boolean
-```
+### 保持データ
 
-`?mode=debug` URL パラメータでエンカウントを無効化。
+- `gameMap: GameMap` — タイル/ワープ/扉
+- `npcs: NPC[]` / `treasures: Treasure[]` / `fixedEnemies: Enemy[]`
+- `treasureStatesCache: Record<string, SavedTreasureData[]>` — マップ間の宝箱開封状態
 
-## 固定敵スポーン
+### 固定敵スポーン条件
 
-```typescript
-private spawnFixedEnemies(mapDef: MapDefinition): Enemy[]
-```
-
-`mapDef.fixedEnemies` の各配置を `checkSpawnCondition` でフィルタリングし、条件を満たすもののみ生成。
-
-### スポーン条件評価
-
-```typescript
-private checkSpawnCondition(cond?: { key, op, value }): boolean
-```
+`MapDefinition.fixedEnemies` の各配置を `spawnCondition` でフィルタリング。`getGameState` コールバック経由で GameStateManager を参照。
 
 | op | 意味 |
 |----|------|
-| `<` | gameState(key) < value |
-| `<=` | gameState(key) <= value |
-| `==` | gameState(key) === value |
-| `!=` | gameState(key) !== value |
-| `>=` | gameState(key) >= value |
-| `>` | gameState(key) > value |
+| `<` `<=` `==` `!=` `>=` `>` | gameState(key) と value の比較 |
 
-条件なし（`undefined`）の場合は常に `true`。
-
-## 宝箱状態キャッシュ
-
-マップ間移動で宝箱の開封状態を保持する仕組み。
-
-```typescript
-private treasureStatesCache: Record<string, SavedTreasureData[]> = {};
-```
-
-### cacheTreasureStates
-
-現在マップの全宝箱の `{ x, y, opened }` をマップID をキーにキャッシュ。`loadMap` 時（マップ切り替え前）と `save` 時に呼ばれる。
-
-### applyTreasureStates
-
-`loadMap` でマップ読み込み後、キャッシュから該当マップの宝箱状態を復元。位置 `(x, y)` でマッチングし、開封済みなら `treasure.open()` を呼ぶ。
+条件なし（`undefined`）の場合は常にスポーン。
 
 ## 状態キャッシュ（パフォーマンス最適化）
 
@@ -436,7 +387,7 @@ public recruitMember(definition: PartyMemberDefinition): boolean
 public save(slotId: number): boolean
 ```
 
-1. `cacheTreasureStates()` で最新の宝箱状態を保存
+1. `mapManager.cacheTreasureStates()` で最新の宝箱状態を保存
 2. `SaveManager.save()` に状態一式を渡す
 
 ### ロード
@@ -452,7 +403,7 @@ public load(slotId: number): boolean
 
 ```
 1. 状態リセット（messages, transitionTo('exploring')）
-2. treasureStatesCache を復元
+2. mapManager.setTreasureStatesCache() で宝箱キャッシュを復元
 3. gameStateManager を復元
 4. restorePartyFromSaveData で Party を復元
 5. loadMap(mapId, x, y, skipCache=true)
@@ -492,7 +443,11 @@ public getGameObjects(): GameObject[]
 
 | ファイル | 役割 |
 |---------|------|
-| `src/engine/GameEngine.ts` | ゲームエンジン本体 |
+| `src/engine/GameEngine.ts` | ファサード（委譲 + バトル/会話/ショップ + セーブ/ロード） |
+| `src/engine/MapManager.ts` | マップ読み込み・NPC/宝箱/固定敵配置・宝箱キャッシュ |
+| `src/engine/EncounterManager.ts` | エンカウント判定・敵生成・デバッグモード |
+| `src/engine/InteractionHandler.ts` | インタラクション検出・結果分類 |
+| `src/engine/CameraManager.ts` | カメラ追従・クランプ計算 |
 | `src/engine/BattleEngine.ts` | バトル委譲先（→ battle-system.md） |
 | `src/engine/DialogueEngine.ts` | 会話委譲先（→ dialogue-system.md） |
 | `src/engine/CombatCalculator.ts` | 戦闘計算（→ combat-calculator.md） |

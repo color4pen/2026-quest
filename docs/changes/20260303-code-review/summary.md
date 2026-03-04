@@ -9,17 +9,17 @@
 
 ## 全体進捗
 
-| カテゴリ | 完了 | 残(設計書) | 合計 |
-|----------|-----:|----------:|-----:|
+| カテゴリ | 完了 | 残 | 合計 |
+|----------|-----:|---:|-----:|
 | バグ修正 (1-x) | 3 | 0 | 3 |
-| 設計改善 (2-x) | 7 | 1 | 8 |
+| 設計改善 (2-x) | 8 | 0 | 8 |
 | React (3-x) | 8 | 0 | 8 |
 | 未使用コード (4) | — | — | 誤り（後述） |
-| **合計** | **18** | **1** | **19** |
+| **合計** | **19** | **0** | **19** |
 
 ---
 
-## 完了済み（17件）
+## 完了済み（19件）
 
 | # | 項目 | 修正内容 | 対応日 |
 |---|------|----------|--------|
@@ -29,6 +29,7 @@
 | 2-2 | PartyMember public フィールド | 全フィールドを private + getter に変更、`defend()` メソッド追加 | 03-03 |
 | 2-3 | Observer try-catch | GameEngine / BattleEngine / DialogueEngine の `notifyListeners` に追加 | 03-03 |
 | 2-4 | BattleEngine setTimeout | `pendingTimers[]` + `scheduleAction()` + `clearPendingTimers()` 実装 | 03-03 |
+| 2-1 | GameEngine 責務分割 | MapManager, EncounterManager, InteractionHandler, CameraManager を抽出（998→812行） | 03-04 |
 | 2-5 | ステートマシン導入 | `GamePhase` tagged union で battleEngine/dialogueEngine/shopState/isGameOver を統合、`transitionTo` で遷移管理 | 03-04 |
 | 2-6 | ItemFactory キャッシュ | インスタンスキャッシュ → 定義データキャッシュに変更、`create()` は毎回新規生成 | 03-04 |
 | 2-7 | ManaPoints 負数クランプ | `ManaPoints.of()` に `Math.max(0, current)` 追加 | 03-03 |
@@ -42,16 +43,6 @@
 | 3-6 | アクセシビリティ | 絵文字に `role="img" aria-label` 付与（PlayerStats, PauseMenu） | 03-04 |
 | 3-7 | CSS `--text-muted` | `App.css` の `:root` に `--text-muted: #888` 追加 | 03-03 |
 | 3-8 | レスポンシブ対応 | `@media (max-width: 1200px/600px)` メディアクエリ追加済み | 03-03 |
-
----
-
-## 設計書のみ作成（1件）
-
-| # | 項目 | 設計書 |
-|---|------|--------|
-| 2-1 | GameEngine 責務分割 | [design-2-1-engine-split.md](./design-2-1-engine-split.md) |
-
-2-5（ステートマシン）は 2026-03-04 に実装完了。2-1 の前提条件が解消済み。
 
 ---
 

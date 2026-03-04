@@ -11,25 +11,18 @@ import {
   DialogueChoice,
   ShopState,
   ShopItem,
-  ENEMY_TEMPLATES,
-  MapDefinition,
-  FixedEnemyPlacement,
-  NPC_DEFINITIONS,
   CameraState,
   VIEWPORT_WIDTH,
-  VIEWPORT_HEIGHT,
   PartyState,
   PartyMemberDefinition,
 } from '../types/game';
-import { SaveData, SaveSlotInfo, SavedTreasureData } from '../types/save';
+import { SaveData, SaveSlotInfo } from '../types/save';
 import { SaveManager } from '../services/SaveManager';
 import {
   Player,
   PlayerState,
   Enemy,
-  Treasure,
   TreasureState,
-  GameMap,
   GameMapState,
   NPC,
   NPCState,
@@ -39,9 +32,13 @@ import {
 import { StateKey } from '../data/stateKeys';
 import { BattleEngine } from './BattleEngine';
 import { DialogueEngine } from './DialogueEngine';
-import { GameObject, isInteractable } from '../components/game';
-import { MAPS, INITIAL_MAP_ID } from '../data/maps';
+import { GameObject } from '../components/game';
+import { INITIAL_MAP_ID } from '../data/maps';
 import { INITIAL_PARTY_MEMBER, getPartyMemberDefinition } from '../data/partyMembers';
+import { CameraManager } from './CameraManager';
+import { EncounterManager } from './EncounterManager';
+import { InteractionHandler } from './InteractionHandler';
+import { MapManager } from './MapManager';
 
 // ゲームフェーズ（排他的状態管理）
 // BattleEngine/DialogueEngine を参照するため、循環依存を避けてここで定義
@@ -72,28 +69,20 @@ export type GameEventListener = (state: GameEngineState) => void;
 export class GameEngine {
   private player: Player;    // 移動・描画用
   private party: Party;      // パーティー管理
-  private treasures: Treasure[];
-  private npcs: NPC[];
-  private fixedEnemies: Enemy[];
-  private gameMap: GameMap;
   private messages: Message[];
   private messageId: number;
   private phase: GamePhase = { type: 'exploring' };
   private listeners: Set<GameEventListener>;
 
-  // 現在のマップ定義
-  private currentMapDefinition: MapDefinition | null;
-
-  // カメラ
-  private camera: CameraState;
+  // サブマネージャー
+  private mapManager: MapManager;
+  private cameraManager: CameraManager;
+  private encounterManager: EncounterManager;
+  private interactionHandler: InteractionHandler;
 
   // 状態キャッシュ（パフォーマンス最適化）
   private stateCache: GameEngineState | null = null;
   private stateDirty: boolean = true;
-
-  // セーブ関連
-  private currentMapId: string = INITIAL_MAP_ID;
-  private treasureStatesCache: Record<string, SavedTreasureData[]> = {};
 
   // ゲーム状態（フラグ・進行度）
   private gameStateManager: GameStateManager;
@@ -101,22 +90,15 @@ export class GameEngine {
   constructor() {
     this.player = new Player();
     this.party = new Party();
-    this.treasures = [];
-    this.npcs = [];
-    this.fixedEnemies = [];
-    this.gameMap = new GameMap();
     this.messages = [];
     this.messageId = 0;
     this.phase = { type: 'exploring' };
     this.listeners = new Set();
-    this.currentMapDefinition = null;
     this.gameStateManager = new GameStateManager();
-    this.camera = {
-      x: 0,
-      y: 0,
-      viewportWidth: VIEWPORT_WIDTH,
-      viewportHeight: VIEWPORT_HEIGHT,
-    };
+    this.mapManager = new MapManager(INITIAL_MAP_ID);
+    this.cameraManager = new CameraManager();
+    this.encounterManager = new EncounterManager();
+    this.interactionHandler = new InteractionHandler();
 
     this.initialize();
   }
@@ -129,7 +111,7 @@ export class GameEngine {
     this.messages = [];
     this.messageId = 0;
     this.transitionTo({ type: 'exploring' });
-    this.treasureStatesCache = {};
+    this.mapManager.setTreasureStatesCache({});
     this.gameStateManager.reset();
 
     // パーティー初期化（エンジニアを追加）
@@ -153,58 +135,16 @@ export class GameEngine {
    * マップを読み込み
    */
   public loadMap(mapId: string, playerX?: number, playerY?: number, skipCache: boolean = false): void {
-    const mapDef = MAPS[mapId];
-    if (!mapDef) {
-      console.error(`Map not found: ${mapId}`);
-      return;
-    }
+    const leaderLevel = this.party.getLeader()?.getState().level ?? 1;
+    const result = this.mapManager.loadMap(mapId, playerX, playerY, {
+      skipCache,
+      leaderLevel,
+      getGameState: (key) => this.gameStateManager.get(key as StateKey),
+    });
+    if (!result) return;
 
-    // マップ切り替え前に現在のマップの宝箱状態をキャッシュ
-    // skipCache=true の場合はスキップ（ロード時など、キャッシュが既に設定済みの場合）
-    if (!skipCache && this.currentMapId && this.treasures.length > 0) {
-      this.cacheTreasureStates();
-    }
-
-    // 現在のマップIDを記録
-    this.currentMapId = mapId;
-    this.currentMapDefinition = mapDef;
-    this.gameMap.loadFromDefinition(mapDef);
-
-    // プレイヤー位置を設定
-    const startX = playerX ?? mapDef.playerStart.x;
-    const startY = playerY ?? mapDef.playerStart.y;
-    this.player.setPosition(startX, startY);
-
-    // NPCを配置
-    this.npcs = [];
-    if (mapDef.npcs) {
-      for (const npcPlacement of mapDef.npcs) {
-        const npcDef = NPC_DEFINITIONS.find(n => n.id === npcPlacement.npcId);
-        if (npcDef) {
-          this.npcs.push(new NPC(npcDef, npcPlacement.x, npcPlacement.y));
-        }
-      }
-    }
-
-    // 宝箱を配置
-    this.treasures = [];
-    if (mapDef.treasures) {
-      for (const treasurePlacement of mapDef.treasures) {
-        this.treasures.push(
-          new Treasure(treasurePlacement.x, treasurePlacement.y, treasurePlacement.gold)
-        );
-      }
-    }
-
-    // キャッシュされた宝箱状態を適用
-    this.applyTreasureStates();
-
-    // 固定敵を配置（ボスなど）
-    this.fixedEnemies = this.spawnFixedEnemies(mapDef);
-
-    this.addMessage(`${mapDef.name}に到着した。`, 'normal');
-
-    // カメラをプレイヤー位置に追従
+    this.player.setPosition(result.startX, result.startY);
+    this.addMessage(`${result.mapName}に到着した。`, 'normal');
     this.updateCamera();
   }
 
@@ -212,32 +152,10 @@ export class GameEngine {
    * カメラをプレイヤーに追従させる
    */
   private updateCamera(): void {
-    const mapHeight = this.gameMap.getState().tiles.length;
-    const mapWidth = this.gameMap.getState().tiles[0]?.length ?? VIEWPORT_WIDTH;
-
-    // プレイヤーを中心に
-    let cameraX = this.player.x;
-    let cameraY = this.player.y;
-
-    // マップ端でカメラを制限（画面外を映さない）
-    const halfW = this.camera.viewportWidth / 2;
-    const halfH = this.camera.viewportHeight / 2;
-
-    // マップがビューポートより小さい場合は中央に固定
-    if (mapWidth <= this.camera.viewportWidth) {
-      cameraX = mapWidth / 2;
-    } else {
-      cameraX = Math.max(halfW, Math.min(mapWidth - halfW, cameraX));
-    }
-
-    if (mapHeight <= this.camera.viewportHeight) {
-      cameraY = mapHeight / 2;
-    } else {
-      cameraY = Math.max(halfH, Math.min(mapHeight - halfH, cameraY));
-    }
-
-    this.camera.x = cameraX;
-    this.camera.y = cameraY;
+    const mapState = this.mapManager.getGameMapState();
+    const mapHeight = mapState.tiles.length;
+    const mapWidth = mapState.tiles[0]?.length ?? VIEWPORT_WIDTH;
+    this.cameraManager.update(this.player.x, this.player.y, mapWidth, mapHeight);
   }
 
   /**
@@ -261,7 +179,7 @@ export class GameEngine {
     const nextPosition = this.player.getNextPosition(direction);
 
     // マップの通行チェック
-    const blockedReason = this.gameMap.getBlockedReason(nextPosition);
+    const blockedReason = this.mapManager.getGameMap().getBlockedReason(nextPosition);
     if (blockedReason) {
       this.addMessage(blockedReason, 'normal');
       this.notifyListeners();
@@ -269,7 +187,7 @@ export class GameEngine {
     }
 
     // 条件付き扉の通過チェック
-    const door = this.gameMap.getDoorAt(nextPosition);
+    const door = this.mapManager.getGameMap().getDoorAt(nextPosition);
     if (door && !door.canPass(this.party)) {
       this.addMessage(door.getBlockedMessage(), 'normal');
       this.notifyListeners();
@@ -277,32 +195,24 @@ export class GameEngine {
     }
 
     // NPC・宝箱とのインタラクションをチェック
-    const allObjects = this.getAllInteractableObjects();
-    for (const obj of allObjects) {
-      if (obj.isAt(nextPosition) && isInteractable(obj) && obj.canInteract()) {
-        const result = obj.onInteract(this.player);
-
-        switch (result.type) {
-          case 'dialogue':
-            this.startDialogue(result.data as NPC);
-            return;
-          case 'treasure':
-            const treasureData = result.data as { gold: number };
-            this.party.addGold(treasureData.gold);
-            this.addMessage(`宝箱を開けた！${treasureData.gold} ゴールドを獲得！`, 'loot');
-            break;
-          case 'battle':
-            const enemy = result.data as Enemy;
-            this.addMessage(`${enemy.name}が現れた！`, 'combat');
-            this.startBattle([enemy]);
-            return;
-        }
-
-        if (result.blockMovement) {
-          this.notifyListeners();
-          return;
-        }
-      }
+    const interaction = this.interactionHandler.check(
+      this.getAllInteractableObjects(), nextPosition, this.player
+    );
+    switch (interaction.type) {
+      case 'dialogue':
+        this.startDialogue(interaction.npc);
+        return;
+      case 'treasure':
+        this.party.addGold(interaction.gold);
+        this.addMessage(`宝箱を開けた！${interaction.gold} ゴールドを獲得！`, 'loot');
+        break;
+      case 'battle':
+        this.addMessage(`${interaction.enemy.name}が現れた！`, 'combat');
+        this.startBattle([interaction.enemy]);
+        return;
+      case 'blocked':
+        this.notifyListeners();
+        return;
     }
 
     // 移動実行
@@ -312,7 +222,7 @@ export class GameEngine {
     this.updateCamera();
 
     // ワープポイントチェック
-    const warp = this.gameMap.getWarpAt(nextPosition);
+    const warp = this.mapManager.getGameMap().getWarpAt(nextPosition);
     if (warp) {
       this.loadMap(warp.toMapId, warp.toX, warp.toY);
       this.notifyListeners();
@@ -320,96 +230,23 @@ export class GameEngine {
     }
 
     // エンカウント判定
-    this.checkEncounter(nextPosition);
+    this.checkEncounter();
 
     this.notifyListeners();
   }
 
   /**
-   * デバッグモードかどうかをチェック
-   */
-  private isDebugMode(): boolean {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('mode') === 'debug';
-    }
-    return false;
-  }
-
-  /**
    * エンカウント判定
    */
-  private checkEncounter(_position: { x: number; y: number }): void {
-    // デバッグモードではエンカウントしない
-    if (this.isDebugMode()) return;
+  private checkEncounter(): void {
+    const encounter = this.mapManager.getGameMap().getEncounter();
+    const leaderLevel = this.party.getLeader()?.getState().level ?? 1;
+    const enemies = this.encounterManager.checkEncounter(encounter, leaderLevel);
+    if (!enemies) return;
 
-    const encounter = this.gameMap.getEncounter();
-    if (!encounter) return;
-
-    // エンカウント率判定
-    if (Math.random() > encounter.rate) {
-      return;
-    }
-
-    // エンカウント発生（1〜3体の敵をランダム生成）
-    const enemies = this.createRandomEnemies(encounter.enemyIds);
     const enemyNames = enemies.map(e => e.name).join('、');
     this.addMessage(`${enemyNames}が現れた！`, 'combat');
     this.startBattle(enemies);
-  }
-
-  /**
-   * ランダムな敵を複数生成（1〜3体）
-   */
-  private createRandomEnemies(enemyIds: string[]): Enemy[] {
-    const count = Math.floor(Math.random() * 3) + 1; // 1〜3体
-    const enemies: Enemy[] = [];
-
-    // パーティーリーダーのレベルを基準に敵を生成
-    const leaderLevel = this.party.getLeader()?.getState().level ?? 1;
-
-    for (let i = 0; i < count; i++) {
-      const enemyName = enemyIds[Math.floor(Math.random() * enemyIds.length)];
-      const template = ENEMY_TEMPLATES.find(t => t.name === enemyName);
-      enemies.push(new Enemy(0, 0, leaderLevel, template));
-    }
-
-    return enemies;
-  }
-
-  /**
-   * 固定敵をスポーン（条件をチェック）
-   */
-  private spawnFixedEnemies(mapDef: MapDefinition): Enemy[] {
-    if (!mapDef.fixedEnemies) return [];
-
-    const leaderLevel = this.party.getLeader()?.getState().level ?? 1;
-
-    return mapDef.fixedEnemies
-      .filter(fe => this.checkSpawnCondition(fe.spawnCondition))
-      .map(fe => {
-        const template = ENEMY_TEMPLATES.find(t => t.name === fe.templateName);
-        return new Enemy(fe.x, fe.y, leaderLevel, template);
-      });
-  }
-
-  /**
-   * スポーン条件をチェック
-   */
-  private checkSpawnCondition(cond?: FixedEnemyPlacement['spawnCondition']): boolean {
-    if (!cond) return true;
-
-    const value = this.gameStateManager.get(cond.key as StateKey);
-
-    switch (cond.op) {
-      case '<':  return value < cond.value;
-      case '<=': return value <= cond.value;
-      case '==': return value === cond.value;
-      case '!=': return value !== cond.value;
-      case '>=': return value >= cond.value;
-      case '>':  return value > cond.value;
-      default:   return false;
-    }
   }
 
   /**
@@ -417,9 +254,9 @@ export class GameEngine {
    */
   private getAllInteractableObjects(): GameObject[] {
     return [
-      ...this.npcs,
-      ...this.treasures.filter(t => !t.isOpened()),
-      ...this.fixedEnemies.filter(e => !e.isDead()),
+      ...this.mapManager.getNpcs(),
+      ...this.mapManager.getTreasures().filter(t => !t.isOpened()),
+      ...this.mapManager.getFixedEnemies().filter(e => !e.isDead()),
     ];
   }
 
@@ -428,9 +265,9 @@ export class GameEngine {
    */
   public getGameObjects(): GameObject[] {
     return [
-      ...this.treasures,
-      ...this.npcs,
-      ...this.fixedEnemies.filter(e => !e.isDead()),
+      ...this.mapManager.getTreasures(),
+      ...this.mapManager.getNpcs(),
+      ...this.mapManager.getFixedEnemies().filter(e => !e.isDead()),
       this.player,
     ];
   }
@@ -722,16 +559,16 @@ export class GameEngine {
     this.stateCache = {
       player: this.player.getState(),
       party: this.party.getState(),
-      treasures: this.treasures.map(t => t.getState()),
-      npcs: this.npcs.map(n => n.getState()),
-      map: this.gameMap.getState(),
-      camera: { ...this.camera },
+      treasures: this.mapManager.getTreasureStates(),
+      npcs: this.mapManager.getNpcStates(),
+      map: this.mapManager.getGameMapState(),
+      camera: this.cameraManager.getState(),
       messages: [...this.messages],
       isGameOver: this.phase.type === 'game_over',
       battle: this.phase.type === 'battle' ? this.phase.engine.getState() : null,
       dialogue: this.phase.type === 'dialogue' ? this.phase.engine.getState() : null,
       shop: this.phase.type === 'shop' ? this.phase.state : null,
-      mapName: this.currentMapDefinition?.name ?? '',
+      mapName: this.mapManager.getMapName(),
     };
     this.stateDirty = false;
 
@@ -795,7 +632,7 @@ export class GameEngine {
    * 現在のマップIDを取得
    */
   public getCurrentMapId(): string {
-    return this.currentMapId;
+    return this.mapManager.getCurrentMapId();
   }
 
   // ==================== ゲーム状態（フラグ・進行度） ====================
@@ -836,13 +673,13 @@ export class GameEngine {
    */
   public save(slotId: number): boolean {
     // 現在のマップの宝箱状態をキャッシュ
-    this.cacheTreasureStates();
+    this.mapManager.cacheTreasureStates();
 
     const success = SaveManager.save(
       slotId,
       this.getState(),
-      this.currentMapId,
-      this.treasureStatesCache,
+      this.mapManager.getCurrentMapId(),
+      this.mapManager.getTreasureStatesCache(),
       this.gameStateManager.getState()
     );
 
@@ -880,32 +717,6 @@ export class GameEngine {
   }
 
   /**
-   * 現在のマップの宝箱状態をキャッシュ
-   */
-  private cacheTreasureStates(): void {
-    this.treasureStatesCache[this.currentMapId] = this.treasures.map(t => ({
-      x: t.x,
-      y: t.y,
-      opened: t.opened,
-    }));
-  }
-
-  /**
-   * キャッシュされた宝箱状態を現在のマップに適用
-   */
-  private applyTreasureStates(): void {
-    const states = this.treasureStatesCache[this.currentMapId];
-    if (!states) return;
-
-    for (const treasure of this.treasures) {
-      const savedState = states.find(s => s.x === treasure.x && s.y === treasure.y);
-      if (savedState?.opened && !treasure.opened) {
-        treasure.open();
-      }
-    }
-  }
-
-  /**
    * セーブデータからゲーム状態を復元
    */
   private restoreFromSaveData(saveData: SaveData): void {
@@ -915,7 +726,7 @@ export class GameEngine {
     this.transitionTo({ type: 'exploring' });
 
     // 宝箱状態キャッシュを復元
-    this.treasureStatesCache = saveData.treasureStates;
+    this.mapManager.setTreasureStatesCache(saveData.treasureStates);
 
     // ゲーム状態（フラグ・進行度）を復元
     this.gameStateManager.restoreState(saveData.gameState ?? {});
