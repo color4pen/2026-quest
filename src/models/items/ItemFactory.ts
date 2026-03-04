@@ -109,11 +109,10 @@ const ITEM_DEFINITIONS: ItemDefinitionData[] = [
   {
     id: 'wooden_sword',
     name: '木の剣',
-    description: '初心者用の木製の剣（連続攻撃可能）',
+    description: '初心者用の木製の剣',
     type: 'equipment',
     slot: 'weapon',
     stats: { attack: 3 },
-    grantedActions: ['double_attack'],
   },
   {
     id: 'iron_sword',
