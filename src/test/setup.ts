@@ -17,6 +17,9 @@ HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
   stroke: vi.fn(),
   clip: vi.fn(),
   rect: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  strokeRect: vi.fn(),
   createLinearGradient: vi.fn(() => ({
     addColorStop: vi.fn(),
   })),
