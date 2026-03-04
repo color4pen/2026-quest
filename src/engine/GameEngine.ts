@@ -16,8 +16,8 @@ import {
   PartyState,
   PartyMemberDefinition,
 } from '../types/game';
-import { SaveData, SaveSlotInfo } from '../types/save';
-import { SaveManager } from '../services/SaveManager';
+import { SaveSlotInfo } from '../types/save';
+import { SaveLoadHandler, MemberRestoreData } from './SaveLoadHandler';
 import { GameCommand } from './calculators/types';
 import { calculatePurchaseCommands } from './calculators/ShopCalculator';
 import { calculateBattleEndCommands } from './calculators/BattleCalculator';
@@ -83,6 +83,7 @@ export class GameEngine {
   private cameraManager: CameraManager;
   private encounterManager: EncounterManager;
   private interactionHandler: InteractionHandler;
+  private saveLoadHandler: SaveLoadHandler;
 
   // 状態キャッシュ（パフォーマンス最適化）
   private stateCache: GameEngineState | null = null;
@@ -103,6 +104,7 @@ export class GameEngine {
     this.cameraManager = new CameraManager();
     this.encounterManager = new EncounterManager();
     this.interactionHandler = new InteractionHandler();
+    this.saveLoadHandler = new SaveLoadHandler();
 
     this.initialize();
   }
@@ -674,7 +676,7 @@ export class GameEngine {
    * 全セーブスロット情報を取得（UI表示用）
    */
   public getSaveSlots(): SaveSlotInfo[] {
-    return SaveManager.getSaveSlots();
+    return this.saveLoadHandler.getSaveSlots();
   }
 
   /**
@@ -684,13 +686,12 @@ export class GameEngine {
     // 現在のマップの宝箱状態をキャッシュ
     this.mapManager.cacheTreasureStates();
 
-    const success = SaveManager.save(
-      slotId,
-      this.getState(),
-      this.mapManager.getCurrentMapId(),
-      this.mapManager.getTreasureStatesCache(),
-      this.gameStateManager.getState()
-    );
+    const success = this.saveLoadHandler.save(slotId, {
+      state: this.getState(),
+      currentMapId: this.mapManager.getCurrentMapId(),
+      treasureStatesCache: this.mapManager.getTreasureStatesCache(),
+      gameState: this.gameStateManager.getState(),
+    });
 
     if (success) {
       this.addMessage('ゲームをセーブしました！', 'normal');
@@ -705,15 +706,17 @@ export class GameEngine {
    * ゲームをロード
    */
   public load(slotId: number): boolean {
-    const saveData = SaveManager.load(slotId);
-    if (!saveData) {
+    const result = this.saveLoadHandler.load(slotId);
+
+    if (!result.success || !result.data) {
+      console.error('Load failed:', result.error);
       this.addMessage('ロードに失敗しました...', 'normal');
       this.notifyListeners();
       return false;
     }
 
     try {
-      this.restoreFromSaveData(saveData);
+      this.applyRestoreData(result.data);
       this.addMessage('ゲームをロードしました！', 'normal');
       this.notifyListeners();
       return true;
@@ -726,39 +729,38 @@ export class GameEngine {
   }
 
   /**
-   * セーブデータからゲーム状態を復元
+   * 復元データを適用
    */
-  private restoreFromSaveData(saveData: SaveData): void {
+  private applyRestoreData(data: NonNullable<import('./SaveLoadHandler').RestoreResult['data']>): void {
     // 状態をリセット
     this.messages = [];
     this.messageId = 0;
     this.transitionTo({ type: 'exploring' });
 
     // 宝箱状態キャッシュを復元
-    this.mapManager.setTreasureStatesCache(saveData.treasureStates);
+    this.mapManager.setTreasureStatesCache(data.treasureStatesCache);
 
     // ゲーム状態（フラグ・進行度）を復元
-    this.gameStateManager.restoreState(saveData.gameState ?? {});
+    this.gameStateManager.restoreState(data.gameState);
 
     // パーティーを復元
-    this.restorePartyFromSaveData(saveData);
+    this.applyPartyRestoreData(data.members, data.gold, data.inventory);
 
     // マップを読み込み（プレイヤー位置も設定）
     // skipCache=true: キャッシュは既に復元済みなので上書きしない
-    this.loadMap(
-      saveData.currentMapId,
-      saveData.playerPosition.x,
-      saveData.playerPosition.y,
-      true
-    );
+    this.loadMap(data.mapId, data.playerPosition.x, data.playerPosition.y, true);
 
     this.markDirty();
   }
 
   /**
-   * パーティーをセーブデータから復元
+   * パーティー復元データを適用
    */
-  private restorePartyFromSaveData(saveData: SaveData): void {
+  private applyPartyRestoreData(
+    members: MemberRestoreData[],
+    gold: number,
+    inventory: Array<{ itemId: string; quantity: number }>
+  ): void {
     // パーティーをリセット
     this.party.reset();
 
@@ -766,20 +768,18 @@ export class GameEngine {
     this.party.clearInventory();
 
     // ゴールドを設定
-    this.party.addGold(saveData.party.gold);
+    this.party.addGold(gold);
 
     // インベントリを復元
-    for (const itemData of saveData.party.inventory) {
+    for (const itemData of inventory) {
       this.party.addItemById(itemData.itemId, itemData.quantity);
     }
 
     // メンバーを復元
-    for (const memberData of saveData.party.members) {
+    for (const memberData of members) {
+      // 定義を取得（SaveLoadHandler で検証済み）
       const definition = getPartyMemberDefinition(memberData.definitionId);
-      if (!definition) {
-        console.warn(`Member definition not found: ${memberData.definitionId}`);
-        continue;
-      }
+      if (!definition) continue;
 
       // メンバーを追加
       this.party.addMember(definition);
