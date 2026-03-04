@@ -381,31 +381,14 @@ export class BattleEngine {
    * パーティーメンバーの行動を実行
    */
   private executePartyMemberAction(member: PartyMember, action: PartyMemberAction): void {
-    switch (action.command) {
-      case 'attack':
-        this.executeAttack(member, action.targetIndex!);
-        break;
-      case 'skill':
-        this.executeSkill(member, action.skill!, action.targetIndex, action.partyTargetId);
-        break;
-      case 'item':
-        this.executeItem(member, action.itemId!, action.targetIndex, action.partyTargetId);
-        break;
-      case 'defend':
-        this.executeDefend(member);
-        break;
+    const resolved = this.resolveAction(member, action);
+    if (resolved) {
+      const context = this.createActionContext(member);
+      const result = resolved.action.execute(resolved.target, context);
+      this.addLogs(result.logs);
     }
 
-    // 勝利チェック
-    if (this.getAliveEnemies().length === 0) {
-      this.result = 'victory';
-      this.phase = 'battle_end';
-      this.clearPendingTimers();
-      this.addLog('戦闘に勝利した！', 'system');
-      this.onBattleEnd?.(this.result, this.enemies);
-      this.notifyListeners();
-      return;
-    }
+    if (this.endBattleIf('victory', this.getAliveEnemies().length === 0)) return;
 
     // 次の行動へ（遅延付き）
     this.scheduleAction(() => {
@@ -425,70 +408,57 @@ export class BattleEngine {
     };
   }
 
-  private executeAttack(member: PartyMember, targetIndex: number): void {
-    const target = this.enemies[targetIndex];
-    if (!target || target.isDead()) return;
-
-    // 装備から付与された攻撃アクションがあればそれを使用
-    const availableActions = member.getAvailableActions();
-    const equipmentAttack = availableActions.find(
-      a => a.type === 'attack' && a.id !== 'attack'
-    );
-
-    const action = equipmentAttack ?? new AttackAction();
-    const context = this.createActionContext(member);
-    const result = action.execute(target, context);
-    this.addLogs(result.logs);
-  }
-
-  private executeSkill(member: PartyMember, skill: SkillDefinition, targetIndex?: number, partyTargetId?: string): void {
-    if (!member.canUseSkill(skill)) return;
-
-    const action = new SkillAction(skill);
-    const context = this.createActionContext(member);
-
-    // ターゲット決定
-    let target: PartyMember | Enemy | null = null;
-    if (skill.type === 'attack' && targetIndex !== undefined) {
-      target = this.enemies[targetIndex];
-      if (!target || target.isDead()) return;
-    } else if (skill.type === 'heal') {
-      target = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
+  /**
+   * アクションとターゲットを解決
+   */
+  private resolveAction(
+    member: PartyMember,
+    action: PartyMemberAction
+  ): { action: AttackAction | SkillAction | ItemAction | DefendAction; target: PartyMember | Enemy | null } | null {
+    switch (action.command) {
+      case 'attack': {
+        const target = this.enemies[action.targetIndex!];
+        if (!target || target.isDead()) return null;
+        // 装備から付与された攻撃アクションがあればそれを使用
+        const available = member.getAvailableActions();
+        const equipAttack = available.find(a => a.type === 'attack' && a.id !== 'attack');
+        return { action: (equipAttack as AttackAction) ?? new AttackAction(), target };
+      }
+      case 'skill': {
+        const skill = action.skill!;
+        if (!member.canUseSkill(skill)) return null;
+        const target = skill.type === 'attack'
+          ? this.enemies[action.targetIndex!]
+          : (action.partyTargetId ? this.party.getMemberById(action.partyTargetId) : member);
+        if (skill.type === 'attack' && (!target || (target as Enemy).isDead?.())) return null;
+        return { action: new SkillAction(skill), target: target ?? null };
+      }
+      case 'item': {
+        const item = this.party.getItem(action.itemId!);
+        if (!item || !this.party.consumeItem(action.itemId!)) return null;
+        const target = item.isTargetEnemy()
+          ? this.enemies[action.targetIndex!]
+          : (action.partyTargetId ? this.party.getMemberById(action.partyTargetId) : member);
+        if (item.isTargetEnemy() && (!target || (target as Enemy).isDead?.())) return null;
+        return { action: new ItemAction(item), target: target ?? null };
+      }
+      case 'defend':
+        return { action: new DefendAction(), target: null };
     }
-
-    const result = action.execute(target, context);
-    this.addLogs(result.logs);
   }
 
-  private executeItem(member: PartyMember, itemId: string, targetIndex?: number, partyTargetId?: string): void {
-    const item = this.party.getItem(itemId);
-    if (!item) return;
-
-    // アイテムを消費
-    const consumed = this.party.consumeItem(itemId);
-    if (!consumed) return;
-
-    const action = new ItemAction(item);
-    const context = this.createActionContext(member);
-
-    // ターゲット決定
-    let target: PartyMember | Enemy | null = null;
-    if (item.isTargetEnemy() && targetIndex !== undefined) {
-      target = this.enemies[targetIndex];
-      if (!target || target.isDead()) return;
-    } else if (item.isTargetAlly()) {
-      target = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
-    }
-
-    const result = action.execute(target, context);
-    this.addLogs(result.logs);
-  }
-
-  private executeDefend(member: PartyMember): void {
-    const action = new DefendAction();
-    const context = this.createActionContext(member);
-    const result = action.execute(null, context);
-    this.addLogs(result.logs);
+  /**
+   * 戦闘終了判定と処理
+   */
+  private endBattleIf(result: BattleResult, condition: boolean): boolean {
+    if (!condition) return false;
+    this.result = result;
+    this.phase = 'battle_end';
+    this.clearPendingTimers();
+    this.addLog(result === 'victory' ? '戦闘に勝利した！' : '敗北した...', 'system');
+    this.onBattleEnd?.(this.result, this.enemies);
+    this.notifyListeners();
+    return true;
   }
 
   // ==================== 敵フェーズ ====================
@@ -524,30 +494,12 @@ export class BattleEngine {
    */
   private executeEnemyTurn(enemy: Enemy): void {
     const aliveMembers = this.getAliveMembers();
-
-    if (aliveMembers.length === 0) {
-      this.result = 'defeat';
-      this.phase = 'battle_end';
-      this.clearPendingTimers();
-      this.addLog('敗北した...', 'system');
-      this.onBattleEnd?.(this.result, this.enemies);
-      this.notifyListeners();
-      return;
-    }
+    if (this.endBattleIf('defeat', aliveMembers.length === 0)) return;
 
     const turnResult = this.enemyAI.executeTurn(enemy, aliveMembers);
     this.addLogs(turnResult.logs);
 
-    // 敗北チェック
-    if (this.party.isAllDead()) {
-      this.result = 'defeat';
-      this.phase = 'battle_end';
-      this.clearPendingTimers();
-      this.addLog('敗北した...', 'system');
-      this.onBattleEnd?.(this.result, this.enemies);
-      this.notifyListeners();
-      return;
-    }
+    if (this.endBattleIf('defeat', this.party.isAllDead())) return;
 
     // 次の敵へ
     this.currentEnemyTurnIndex++;
@@ -572,16 +524,7 @@ export class BattleEngine {
     // 防御状態をリセット（状態異常処理後）
     this.party.resetAllDefend();
 
-    // パーティー全滅チェック
-    if (this.party.isAllDead()) {
-      this.result = 'defeat';
-      this.phase = 'battle_end';
-      this.clearPendingTimers();
-      this.addLog('敗北した...', 'system');
-      this.onBattleEnd?.(this.result, this.enemies);
-      this.notifyListeners();
-      return;
-    }
+    if (this.endBattleIf('defeat', this.party.isAllDead())) return;
 
     // 次のターンへ
     this.selectFirstAliveMember();
