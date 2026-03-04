@@ -6,14 +6,14 @@ import {
   EquipmentSlot,
   EquipmentSlotState,
 } from '../types/party';
-import type { StatusEffect, StatusEffectType, StatusEffectInfo } from '../types/statusEffect';
-import { StatusEffectFactory } from './statusEffects';
+import type { StatusEffectType, StatusEffectInfo } from '../types/statusEffect';
 import { EquipmentItem } from './items/EquipmentItem';
 import { CombatCalculator } from '../engine/CombatCalculator';
 import { HitPoints } from './values/HitPoints';
 import { ManaPoints } from './values/ManaPoints';
 import { EquipmentStatBlock } from './values/EquipmentStatBlock';
 import { ExperienceManager } from './components/ExperienceManager';
+import { StatusEffectManager } from './components/StatusEffectManager';
 
 /**
  * パーティーメンバークラス
@@ -51,8 +51,8 @@ export class PartyMember {
     accessory: null,
   };
 
-  // 状態異常
-  private statusEffects: StatusEffect[] = [];
+  // 状態異常管理
+  private readonly statusEffects: StatusEffectManager = new StatusEffectManager();
 
   constructor(definition: PartyMemberDefinition) {
     this.id = definition.id;
@@ -248,57 +248,42 @@ export class PartyMember {
     if (!this.isAlive()) {
       return false;
     }
-
-    if (this.hasStatusEffect(type)) {
-      return false;
-    }
-
-    const effect = StatusEffectFactory.create(type, duration);
-    this.statusEffects.push(effect);
-    return true;
+    return this.statusEffects.add(type, duration);
   }
 
   /**
    * 特定の種類の状態異常を解除
    */
   removeStatusEffect(type: StatusEffectType): boolean {
-    const initialLength = this.statusEffects.length;
-    this.statusEffects = this.statusEffects.filter(e => e.type !== type);
-    return this.statusEffects.length < initialLength;
+    return this.statusEffects.remove(type);
   }
 
   /**
    * 全ての状態異常を解除
    */
   clearAllStatusEffects(): void {
-    this.statusEffects = [];
+    this.statusEffects.clear();
   }
 
   /**
    * 特定の状態異常を持っているか
    */
   hasStatusEffect(type: StatusEffectType): boolean {
-    return this.statusEffects.some(e => e.type === type);
+    return this.statusEffects.has(type);
   }
 
   /**
    * 全ての状態異常を取得
    */
-  getStatusEffects(): readonly StatusEffect[] {
-    return this.statusEffects;
+  getStatusEffects() {
+    return this.statusEffects.getAll();
   }
 
   /**
    * 状態異常情報を取得（UI表示用）
    */
   getStatusEffectInfos(): StatusEffectInfo[] {
-    return this.statusEffects.map(e => ({
-      type: e.type,
-      name: e.name,
-      shortName: e.shortName,
-      color: e.color,
-      remainingTurns: e.remainingTurns,
-    }));
+    return this.statusEffects.getInfos();
   }
 
   /**
@@ -306,24 +291,7 @@ export class PartyMember {
    * @returns 処理結果の配列（ログ表示用）
    */
   processStatusEffectsTurnEnd(): { message: string; damage?: number; targetDied?: boolean }[] {
-    const results: { message: string; damage?: number; targetDied?: boolean }[] = [];
-
-    for (const effect of this.statusEffects) {
-      const result = effect.onTurnEnd(this);
-      if (result) {
-        results.push({
-          message: result.message,
-          damage: result.damage,
-          targetDied: this.isDead(),
-        });
-      }
-      effect.tick();
-    }
-
-    // 解除すべき状態異常を削除
-    this.statusEffects = this.statusEffects.filter(e => !e.shouldRemove());
-
-    return results;
+    return this.statusEffects.processTurnEnd(this);
   }
 
   // ==================== 装備システム ====================
