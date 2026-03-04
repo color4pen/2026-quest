@@ -58,7 +58,7 @@ export interface Action {
   /** 表示名 */
   readonly name: string;
   /** 行動タイプ（UI表示用） */
-  readonly type: 'attack' | 'skill' | 'defend' | 'item';
+  readonly type: 'attack' | 'skill' | 'defend' | 'item' | 'wait';
 
   /**
    * ターゲットタイプを取得

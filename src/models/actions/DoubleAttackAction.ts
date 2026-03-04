@@ -1,5 +1,5 @@
 import type { Action, ActionContext, ActionResult, ActionTargetType } from './Action';
-import type { Combatant } from '../Combatant';
+import { isPlayerCombatant, type Combatant } from '../Combatant';
 import { CombatCalculator } from '../../engine/CombatCalculator';
 
 /**
@@ -26,7 +26,7 @@ class FollowUpHitAction implements Action {
 
     const damage = CombatCalculator.calculateAttackDamage({
       attack: context.performer.attack,
-      isPlayer: true,
+      isPlayer: isPlayerCombatant(context.performer),
     });
 
     const actualDamage = target.takeDamage(damage);
@@ -70,15 +70,16 @@ export class DoubleAttackAction implements Action {
     }
 
     // 1撃目
+    const isPlayer = isPlayerCombatant(context.performer);
     const damage = CombatCalculator.calculateAttackDamage({
       attack: context.performer.attack,
-      isPlayer: true,
+      isPlayer,
     });
 
     const actualDamage = target.takeDamage(damage);
 
     const logs: ActionResult['logs'] = [
-      { text: `${context.performer.name}の連続攻撃！`, type: 'player' },
+      { text: `${context.performer.name}の連続攻撃！`, type: isPlayer ? 'player' : 'enemy' },
       { text: `${target.name}に ${actualDamage} のダメージ！`, type: 'damage' },
     ];
 

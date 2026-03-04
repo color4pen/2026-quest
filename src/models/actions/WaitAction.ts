@@ -8,7 +8,7 @@ import type { Combatant } from '../Combatant';
 export class WaitAction implements Action {
   readonly id = 'wait';
   readonly name = '様子見';
-  readonly type = 'defend' as const; // 攻撃でも防御でもないが、型上は defend を使用
+  readonly type = 'wait' as const;
 
   getTargetType(): ActionTargetType {
     return 'none';
