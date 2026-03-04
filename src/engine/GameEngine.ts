@@ -178,61 +178,58 @@ export class GameEngine {
 
     const nextPosition = this.player.getNextPosition(direction);
 
-    // マップの通行チェック
-    const blockedReason = this.mapManager.getGameMap().getBlockedReason(nextPosition);
-    if (blockedReason) {
-      this.addMessage(blockedReason, 'normal');
+    // 通行チェック（壁・扉）
+    const blocked = this.mapManager.getMovementBlock(nextPosition, this.party);
+    if (blocked) {
+      this.addMessage(blocked, 'normal');
       this.notifyListeners();
       return;
     }
 
-    // 条件付き扉の通過チェック
-    const door = this.mapManager.getGameMap().getDoorAt(nextPosition);
-    if (door && !door.canPass(this.party)) {
-      this.addMessage(door.getBlockedMessage(), 'normal');
-      this.notifyListeners();
-      return;
-    }
-
-    // NPC・宝箱とのインタラクションをチェック
+    // インタラクション（NPC・宝箱・固定敵）
     const interaction = this.interactionHandler.check(
       this.getAllInteractableObjects(), nextPosition, this.player
     );
-    switch (interaction.type) {
-      case 'dialogue':
-        this.startDialogue(interaction.npc);
-        return;
-      case 'treasure':
-        this.party.addGold(interaction.gold);
-        this.addMessage(`宝箱を開けた！${interaction.gold} ゴールドを獲得！`, 'loot');
-        break;
-      case 'battle':
-        this.addMessage(`${interaction.enemy.name}が現れた！`, 'combat');
-        this.startBattle([interaction.enemy]);
-        return;
-      case 'blocked':
-        this.notifyListeners();
-        return;
-    }
+    if (this.handleInteraction(interaction)) return;
 
-    // 移動実行
+    // 移動 → カメラ → ワープ → エンカウント
     this.player.moveTo(nextPosition);
-
-    // カメラ追従
     this.updateCamera();
 
-    // ワープポイントチェック
-    const warp = this.mapManager.getGameMap().getWarpAt(nextPosition);
+    const warp = this.mapManager.getWarpAt(nextPosition);
     if (warp) {
       this.loadMap(warp.toMapId, warp.toX, warp.toY);
       this.notifyListeners();
       return;
     }
 
-    // エンカウント判定
     this.checkEncounter();
-
     this.notifyListeners();
+  }
+
+  /**
+   * インタラクション結果を処理
+   * @returns true なら移動をスキップ
+   */
+  private handleInteraction(interaction: ReturnType<typeof this.interactionHandler.check>): boolean {
+    switch (interaction.type) {
+      case 'dialogue':
+        this.startDialogue(interaction.npc);
+        return true;
+      case 'treasure':
+        this.party.addGold(interaction.gold);
+        this.addMessage(`宝箱を開けた！${interaction.gold} ゴールドを獲得！`, 'loot');
+        return false;
+      case 'battle':
+        this.addMessage(`${interaction.enemy.name}が現れた！`, 'combat');
+        this.startBattle([interaction.enemy]);
+        return true;
+      case 'blocked':
+        this.notifyListeners();
+        return true;
+      default:
+        return false;
+    }
   }
 
   /**

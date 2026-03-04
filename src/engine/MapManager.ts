@@ -1,9 +1,12 @@
 import {
   MapDefinition,
+  Position,
   FixedEnemyPlacement,
-  NPC_DEFINITIONS,
+  WarpPoint,
   ENEMY_TEMPLATES,
 } from '../types/game';
+import { Party } from '../models';
+import { NPC_DEFINITIONS } from '../data/npcDefinitions';
 import { SavedTreasureData } from '../types/save';
 import {
   Enemy,
@@ -165,6 +168,29 @@ export class MapManager {
       case '>':  return value > cond.value;
       default:   return false;
     }
+  }
+
+  // ==================== 移動チェック ====================
+
+  /**
+   * 移動先の通行可否を判定
+   * @returns 通行不可理由の文字列、通行可能なら null
+   */
+  getMovementBlock(position: Position, party: Party): string | null {
+    const blockedReason = this.gameMap.getBlockedReason(position);
+    if (blockedReason) return blockedReason;
+
+    const door = this.gameMap.getDoorAt(position);
+    if (door && !door.canPass(party)) return door.getBlockedMessage();
+
+    return null;
+  }
+
+  /**
+   * ワープポイントを取得
+   */
+  getWarpAt(position: Position): WarpPoint | null {
+    return this.gameMap.getWarpAt(position) ?? null;
   }
 
   // ==================== Getter ====================
