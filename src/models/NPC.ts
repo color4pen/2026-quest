@@ -5,10 +5,10 @@ import {
   DialogueData,
   ShopItem,
   ConditionalStartId,
-  NPC_DEFINITIONS,
   MAP_WIDTH,
   MAP_HEIGHT,
 } from '../types/game';
+import { NPC_DEFINITIONS } from '../data/npcDefinitions';
 import {
   GameObject,
   GameObjectState,
