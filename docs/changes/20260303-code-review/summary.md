@@ -12,10 +12,10 @@
 | カテゴリ | 完了 | 残(設計書) | 合計 |
 |----------|-----:|----------:|-----:|
 | バグ修正 (1-x) | 3 | 0 | 3 |
-| 設計改善 (2-x) | 6 | 2 | 8 |
+| 設計改善 (2-x) | 7 | 1 | 8 |
 | React (3-x) | 8 | 0 | 8 |
 | 未使用コード (4) | — | — | 誤り（後述） |
-| **合計** | **17** | **2** | **19** |
+| **合計** | **18** | **1** | **19** |
 
 ---
 
@@ -29,6 +29,7 @@
 | 2-2 | PartyMember public フィールド | 全フィールドを private + getter に変更、`defend()` メソッド追加 | 03-03 |
 | 2-3 | Observer try-catch | GameEngine / BattleEngine / DialogueEngine の `notifyListeners` に追加 | 03-03 |
 | 2-4 | BattleEngine setTimeout | `pendingTimers[]` + `scheduleAction()` + `clearPendingTimers()` 実装 | 03-03 |
+| 2-5 | ステートマシン導入 | `GamePhase` tagged union で battleEngine/dialogueEngine/shopState/isGameOver を統合、`transitionTo` で遷移管理 | 03-04 |
 | 2-6 | ItemFactory キャッシュ | インスタンスキャッシュ → 定義データキャッシュに変更、`create()` は毎回新規生成 | 03-04 |
 | 2-7 | ManaPoints 負数クランプ | `ManaPoints.of()` に `Math.max(0, current)` 追加 | 03-03 |
 | 2-8 | マップ生成のシード化 | `Math.random()` → シード付き疑似乱数（mulberry32, seed=2026）に変更 | 03-04 |
@@ -44,14 +45,13 @@
 
 ---
 
-## 設計書のみ作成（2件）
+## 設計書のみ作成（1件）
 
 | # | 項目 | 設計書 |
 |---|------|--------|
-| 2-5 | ステートマシン導入 | [design-2-5-state-machine.md](./design-2-5-state-machine.md) |
 | 2-1 | GameEngine 責務分割 | [design-2-1-engine-split.md](./design-2-1-engine-split.md) |
 
-**実装順序**: 2-5（ステートマシン）→ 2-1（エンジン分割）。2-5 が 2-1 の前提条件。
+2-5（ステートマシン）は 2026-03-04 に実装完了。2-1 の前提条件が解消済み。
 
 ---
 

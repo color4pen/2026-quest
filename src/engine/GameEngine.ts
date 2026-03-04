@@ -43,6 +43,15 @@ import { GameObject, isInteractable } from '../components/game';
 import { MAPS, INITIAL_MAP_ID } from '../data/maps';
 import { INITIAL_PARTY_MEMBER, getPartyMemberDefinition } from '../data/partyMembers';
 
+// ゲームフェーズ（排他的状態管理）
+// BattleEngine/DialogueEngine を参照するため、循環依存を避けてここで定義
+type GamePhase =
+  | { type: 'exploring' }
+  | { type: 'battle'; engine: BattleEngine }
+  | { type: 'dialogue'; engine: DialogueEngine }
+  | { type: 'shop'; state: ShopState }
+  | { type: 'game_over' };
+
 export interface GameEngineState {
   player: PlayerState;       // 後方互換性のため残す（移動用）
   party: PartyState;         // パーティー情報
@@ -69,17 +78,8 @@ export class GameEngine {
   private gameMap: GameMap;
   private messages: Message[];
   private messageId: number;
-  private isGameOver: boolean;
+  private phase: GamePhase = { type: 'exploring' };
   private listeners: Set<GameEventListener>;
-
-  // バトル関連
-  private battleEngine: BattleEngine | null;
-
-  // 会話関連
-  private dialogueEngine: DialogueEngine | null;
-
-  // ショップ関連
-  private shopState: ShopState | null;
 
   // 現在のマップ定義
   private currentMapDefinition: MapDefinition | null;
@@ -107,11 +107,8 @@ export class GameEngine {
     this.gameMap = new GameMap();
     this.messages = [];
     this.messageId = 0;
-    this.isGameOver = false;
+    this.phase = { type: 'exploring' };
     this.listeners = new Set();
-    this.battleEngine = null;
-    this.dialogueEngine = null;
-    this.shopState = null;
     this.currentMapDefinition = null;
     this.gameStateManager = new GameStateManager();
     this.camera = {
@@ -131,10 +128,7 @@ export class GameEngine {
     this.player.reset();
     this.messages = [];
     this.messageId = 0;
-    this.isGameOver = false;
-    this.battleEngine = null;
-    this.dialogueEngine = null;
-    this.shopState = null;
+    this.transitionTo({ type: 'exploring' });
     this.treasureStatesCache = {};
     this.gameStateManager.reset();
 
@@ -247,13 +241,22 @@ export class GameEngine {
   }
 
   /**
+   * フェーズ遷移（前フェーズのクリーンアップ付き）
+   */
+  private transitionTo(newPhase: GamePhase): void {
+    if (this.phase.type === 'battle') {
+      this.phase.engine.clearPendingTimers();
+    }
+    this.phase = newPhase;
+    this.markDirty();
+  }
+
+  /**
    * プレイヤーを移動
    */
   public move(direction: Direction): void {
-    if (this.battleEngine || this.dialogueEngine || this.shopState ||
-        this.isGameOver || this.party.isAllDead()) {
-      return;
-    }
+    if (this.phase.type !== 'exploring') return;
+    if (this.party.isAllDead()) return;
 
     const nextPosition = this.player.getNextPosition(direction);
 
@@ -435,33 +438,34 @@ export class GameEngine {
   // ==================== バトル関連 ====================
 
   private startBattle(enemies: Enemy[]): void {
-    this.battleEngine = new BattleEngine(this.party, enemies);
+    const engine = new BattleEngine(this.party, enemies);
 
-    this.battleEngine.setOnBattleEnd((result, defeatedEnemies) => {
+    engine.setOnBattleEnd((result, defeatedEnemies) => {
       this.handleBattleEnd(result, defeatedEnemies);
     });
 
-    this.battleEngine.subscribe(() => {
+    engine.subscribe(() => {
       this.notifyListeners();
     });
 
+    this.transitionTo({ type: 'battle', engine });
     this.notifyListeners();
   }
 
   public selectBattleCommand(command: BattleCommand): void {
-    this.battleEngine?.selectCommand(command);
+    if (this.phase.type === 'battle') this.phase.engine.selectCommand(command);
   }
 
   public useBattleSkill(skill: SkillDefinition): void {
-    this.battleEngine?.useSkill(skill);
+    if (this.phase.type === 'battle') this.phase.engine.useSkill(skill);
   }
 
   public useBattleItem(itemId: string): void {
-    this.battleEngine?.useItem(itemId);
+    if (this.phase.type === 'battle') this.phase.engine.useItem(itemId);
   }
 
   public cancelBattleSelection(): void {
-    this.battleEngine?.cancelSelection();
+    if (this.phase.type === 'battle') this.phase.engine.cancelSelection();
   }
 
   private handleBattleEnd(result: BattleResult, enemies: Enemy[]): void {
@@ -507,36 +511,35 @@ export class GameEngine {
       // パーティー全員の戦闘後回復
       this.party.recoverAllAfterBattle();
     } else if (result === 'defeat') {
-      this.isGameOver = true;
       this.addMessage('敗北した...ゲームオーバー', 'combat');
     }
   }
 
   public closeBattle(): void {
-    if (this.battleEngine?.getState().phase === 'battle_end') {
-      this.battleEngine = null;
-      this.notifyListeners();
-    }
+    if (this.phase.type !== 'battle') return;
+    if (this.phase.engine.getState().phase !== 'battle_end') return;
+
+    const isDefeat = this.phase.engine.getState().result === 'defeat';
+    this.transitionTo(isDefeat ? { type: 'game_over' } : { type: 'exploring' });
+    this.notifyListeners();
   }
 
   public selectBattleTarget(targetIndex: number): void {
-    this.battleEngine?.selectTarget(targetIndex);
+    if (this.phase.type === 'battle') this.phase.engine.selectTarget(targetIndex);
   }
 
   // ==================== 会話関連 ====================
 
   private startDialogue(npc: NPC): void {
-    // ゲーム状態取得関数を渡す
     const getGameState = (key: string) => this.gameStateManager.get(key as StateKey);
-    this.dialogueEngine = new DialogueEngine(npc, getGameState);
+    const engine = new DialogueEngine(npc, getGameState);
 
-    this.dialogueEngine.setCallbacks({
+    engine.setCallbacks({
       onDialogueEnd: () => {
-        this.dialogueEngine = null;
+        this.transitionTo({ type: 'exploring' });
         this.notifyListeners();
       },
       onOpenShop: (shopNpc) => {
-        this.dialogueEngine = null;
         this.openShop(shopNpc);
       },
       onHeal: (cost) => {
@@ -553,25 +556,26 @@ export class GameEngine {
       },
     });
 
-    this.dialogueEngine.subscribe(() => {
+    engine.subscribe(() => {
       this.notifyListeners();
     });
 
+    this.transitionTo({ type: 'dialogue', engine });
     this.notifyListeners();
   }
 
   public selectDialogueChoice(choice: DialogueChoice): void {
-    this.dialogueEngine?.selectChoice(choice);
+    if (this.phase.type === 'dialogue') this.phase.engine.selectChoice(choice);
   }
 
   public closeDialogue(): void {
-    this.dialogueEngine?.close();
-    this.dialogueEngine = null;
-    this.notifyListeners();
+    if (this.phase.type === 'dialogue') {
+      this.phase.engine.close();
+    }
   }
 
   public advanceDialogue(): void {
-    this.dialogueEngine?.advance();
+    if (this.phase.type === 'dialogue') this.phase.engine.advance();
   }
 
   // ==================== ショップ関連 ====================
@@ -579,15 +583,17 @@ export class GameEngine {
   private openShop(npc: NPC): void {
     if (!npc.shopItems) return;
 
-    this.shopState = {
-      isActive: true,
-      shopName: npc.name,
-      items: npc.shopItems.map(item => ({
-        ...item,
-        item: { ...item.item },
-      })),
-    };
-
+    this.transitionTo({
+      type: 'shop',
+      state: {
+        isActive: true,
+        shopName: npc.name,
+        items: npc.shopItems.map(item => ({
+          ...item,
+          item: { ...item.item },
+        })),
+      },
+    });
     this.notifyListeners();
   }
 
@@ -617,7 +623,7 @@ export class GameEngine {
   }
 
   public closeShop(): void {
-    this.shopState = null;
+    this.transitionTo({ type: 'exploring' });
     this.notifyListeners();
   }
 
@@ -721,10 +727,10 @@ export class GameEngine {
       map: this.gameMap.getState(),
       camera: { ...this.camera },
       messages: [...this.messages],
-      isGameOver: this.isGameOver,
-      battle: this.battleEngine?.getState() ?? null,
-      dialogue: this.dialogueEngine?.getState() ?? null,
-      shop: this.shopState,
+      isGameOver: this.phase.type === 'game_over',
+      battle: this.phase.type === 'battle' ? this.phase.engine.getState() : null,
+      dialogue: this.phase.type === 'dialogue' ? this.phase.engine.getState() : null,
+      shop: this.phase.type === 'shop' ? this.phase.state : null,
       mapName: this.currentMapDefinition?.name ?? '',
     };
     this.stateDirty = false;
@@ -906,10 +912,7 @@ export class GameEngine {
     // 状態をリセット
     this.messages = [];
     this.messageId = 0;
-    this.isGameOver = false;
-    this.battleEngine = null;
-    this.dialogueEngine = null;
-    this.shopState = null;
+    this.transitionTo({ type: 'exploring' });
 
     // 宝箱状態キャッシュを復元
     this.treasureStatesCache = saveData.treasureStates;

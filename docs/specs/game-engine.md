@@ -15,10 +15,11 @@ GameEngine はゲーム全体のオーケストレーター。プレイヤー移
 │  │(移動用) │  │(戦闘用)│  │(フラグ管理)  │  │(タイル/ワープ)│  │
 │  └─────────┘  └───────┘  └──────────────┘  └─────────────┘  │
 │                                                               │
-│  ┌──────────────┐  ┌────────────────┐  ┌───────────────┐     │
-│  │BattleEngine  │  │DialogueEngine  │  │  ShopState    │     │
-│  │(戦闘委譲)    │  │(会話委譲)      │  │(ショップ状態) │     │
-│  └──────────────┘  └────────────────┘  └───────────────┘     │
+│  ┌─────────────────────────────────────────────────────┐     │
+│  │  GamePhase (tagged union: 排他的状態管理)            │     │
+│  │  exploring | battle(Engine) | dialogue(Engine)      │     │
+│  │  | shop(State) | game_over                          │     │
+│  └─────────────────────────────────────────────────────┘     │
 │                                                               │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────┐               │
 │  │  NPCs[]  │  │Treasures[]│  │FixedEnemies[]│               │
@@ -55,6 +56,60 @@ interface GameEngineState {
 }
 ```
 
+## ゲームフェーズ（GamePhase）
+
+ゲームの排他的状態を tagged union で管理。4つの独立変数（battleEngine, dialogueEngine, shopState, isGameOver）を1つの `phase` 変数に統合。
+
+```typescript
+type GamePhase =
+  | { type: 'exploring' }                      // フィールド探索中
+  | { type: 'battle'; engine: BattleEngine }   // バトル中
+  | { type: 'dialogue'; engine: DialogueEngine } // 会話中
+  | { type: 'shop'; state: ShopState }         // ショップ中
+  | { type: 'game_over' };                     // ゲームオーバー
+```
+
+### フェーズ遷移
+
+```
+              ┌────────────┐
+    ┌──────── │  exploring  │ ◄──────────┐
+    │         └─────┬──────┘             │
+    │               │                    │
+  NPC接触       敵接触/遭遇        勝利/閉じる
+    │               │                    │
+    ▼               ▼                    │
+┌──────────┐  ┌──────────┐              │
+│ dialogue │  │  battle   │─── 勝利 ───→┘
+└────┬─────┘  └────┬──────┘
+     │              │
+  ショップ開く    敗北
+     │              │
+     ▼              ▼
+┌──────────┐  ┌───────────┐
+│   shop   │  │ game_over │
+└──────────┘  └───────────┘
+```
+
+### transitionTo
+
+```typescript
+private transitionTo(newPhase: GamePhase): void
+```
+
+前フェーズのクリーンアップ（`battle` → `clearPendingTimers()`）を行い、新フェーズに切り替え。`markDirty()` で状態キャッシュを無効化。
+
+### getState() での変換
+
+`GamePhase` は内部状態。React 向けの `GameEngineState` では従来の形式に変換して出力:
+
+```typescript
+isGameOver: this.phase.type === 'game_over',
+battle: this.phase.type === 'battle' ? this.phase.engine.getState() : null,
+dialogue: this.phase.type === 'dialogue' ? this.phase.engine.getState() : null,
+shop: this.phase.type === 'shop' ? this.phase.state : null,
+```
+
 ## 初期化
 
 ```typescript
@@ -62,10 +117,11 @@ constructor() → initialize()
 ```
 
 1. Player をリセット（位置のみ管理）
-2. Party をリセットし、`INITIAL_PARTY_MEMBER`（エンジニア）を追加
-3. 初期状態異常（インフルエンザ）を付与
-4. `loadMap(INITIAL_MAP_ID)` で初期マップを読み込み
-5. 開始メッセージを追加
+2. `transitionTo({ type: 'exploring' })` でフェーズ初期化
+3. Party をリセットし、`INITIAL_PARTY_MEMBER`（エンジニア）を追加
+4. 初期状態異常（インフルエンザ）を付与
+5. `loadMap(INITIAL_MAP_ID)` で初期マップを読み込み
+6. 開始メッセージを追加
 
 ## マップ読み込み
 
@@ -101,12 +157,12 @@ move(direction: Direction): void
 
 ### 移動ブロック条件
 
-バトル中・会話中・ショップ中・ゲームオーバー・全滅時は移動を無視。
+`phase.type !== 'exploring'` または全滅時は移動を無視。
 
 ### 処理フロー
 
 ```
-1. ブロック条件チェック（バトル/会話/ショップ/ゲームオーバー/全滅）
+1. フェーズチェック（exploring 以外なら return）+ 全滅チェック
 2. 次の位置を計算（player.getNextPosition）
 3. マップ通行チェック（壁・範囲外）
 4. 条件付き扉の通過チェック（door.canPass(party)）
@@ -153,9 +209,10 @@ private getAllInteractableObjects(): GameObject[] {
 private startBattle(enemies: Enemy[]): void
 ```
 
-1. `BattleEngine` を生成（Party と敵配列を渡す）
+1. `BattleEngine` をローカル変数で生成（Party と敵配列を渡す）
 2. `onBattleEnd` コールバックを設定
 3. BattleEngine の状態変更を購読
+4. `transitionTo({ type: 'battle', engine })` でフェーズ遷移
 
 ### 公開メソッド
 
@@ -166,7 +223,7 @@ private startBattle(enemies: Enemy[]): void
 | `useBattleItem(itemId)` | アイテム使用 |
 | `selectBattleTarget(index)` | ターゲット選択 |
 | `cancelBattleSelection()` | 選択キャンセル |
-| `closeBattle()` | バトル終了（battle_end フェーズのみ） |
+| `closeBattle()` | バトル終了 → result に応じて exploring / game_over に遷移 |
 
 ### バトル終了処理（handleBattleEnd）
 
@@ -179,7 +236,7 @@ private startBattle(enemies: Enemy[]): void
 6. Party 全員の戦闘後回復
 
 **敗北時:**
-- `isGameOver = true`
+- メッセージ追加のみ（`closeBattle()` で `game_over` フェーズに遷移）
 
 ## 会話委譲
 
@@ -189,13 +246,13 @@ private startBattle(enemies: Enemy[]): void
 private startDialogue(npc: NPC): void
 ```
 
-1. `DialogueEngine` を生成（NPC と `getGameState` コールバックを渡す）
+1. `DialogueEngine` をローカル変数で生成（NPC と `getGameState` コールバックを渡す）
 2. コールバック設定:
 
 | コールバック | 処理 |
 |-------------|------|
-| `onDialogueEnd` | DialogueEngine を null に |
-| `onOpenShop` | DialogueEngine を null に → `openShop(npc)` |
+| `onDialogueEnd` | `transitionTo({ type: 'exploring' })` |
+| `onOpenShop` | `openShop(npc)`（内部で shop フェーズに遷移） |
 | `onHeal` | `handleHeal(cost)` — ゴールド消費＋全回復 |
 | `onSetState` | `gameStateManager.set(key, value)` |
 | `onGiveItem` | `party.addItemById()` + メッセージ |
@@ -324,6 +381,8 @@ private stateDirty: boolean = true;
 2. `getState()` で最新状態を取得
 3. 全リスナーに通知（try-catch でエラーを隔離）
 
+`transitionTo` でも `markDirty()` が呼ばれるため、フェーズ遷移後の `notifyListeners()` では常に最新の状態が構築される。
+
 ## Observer パターン
 
 ```typescript
@@ -392,7 +451,7 @@ public load(slotId: number): boolean
 ### restoreFromSaveData
 
 ```
-1. 状態リセット（messages, battleEngine, dialogueEngine, shopState）
+1. 状態リセット（messages, transitionTo('exploring')）
 2. treasureStatesCache を復元
 3. gameStateManager を復元
 4. restorePartyFromSaveData で Party を復元

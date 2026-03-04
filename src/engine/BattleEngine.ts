@@ -765,7 +765,7 @@ export class BattleEngine {
   /**
    * 未実行のタイマーを全てクリア
    */
-  private clearPendingTimers(): void {
+  public clearPendingTimers(): void {
     this.pendingTimers.forEach(id => clearTimeout(id));
     this.pendingTimers = [];
   }
