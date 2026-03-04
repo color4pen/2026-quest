@@ -18,6 +18,7 @@ import { HitPoints } from './values/HitPoints';
 import type { Combatant } from './Combatant';
 import type { Action } from './actions/Action';
 import { AttackAction } from './actions/AttackAction';
+import { WaitAction } from './actions/WaitAction';
 
 /**
  * 敵状態（React用）
@@ -171,11 +172,36 @@ export class Enemy extends GameObject implements Interactable, Combatant {
 
   /**
    * この敵が実行可能な行動一覧を取得
+   * battleConfig に基づいて返す
    */
   getAvailableActions(): Action[] {
-    // 基本は攻撃のみ
-    // TODO: スキルを持つ敵の場合はスキルを追加
-    return [new AttackAction()];
+    const actions: Action[] = [];
+    const { aiType, poisonChance } = this.battleConfig;
+
+    // 通常攻撃（毒付与がある場合はその確率を設定）
+    if (poisonChance && poisonChance > 0) {
+      actions.push(new AttackAction({ poisonChance }));
+    } else {
+      actions.push(new AttackAction());
+    }
+
+    // aggressive タイプは強攻撃を持つ
+    if (aiType === 'aggressive') {
+      actions.push(new AttackAction({ multiplier: 1.5, name: '強攻撃' }));
+    }
+
+    // defensive タイプは様子見を持つ
+    if (aiType === 'defensive') {
+      actions.push(new WaitAction());
+    }
+
+    // random タイプは両方持つ
+    if (aiType === 'random') {
+      actions.push(new AttackAction({ multiplier: 1.5, name: '強攻撃' }));
+      actions.push(new WaitAction());
+    }
+
+    return actions;
   }
 
   // ==================== 状態管理 ====================

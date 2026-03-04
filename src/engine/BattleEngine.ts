@@ -542,8 +542,20 @@ export class BattleEngine {
     const aliveMembers = this.getAliveMembers();
     if (this.endBattleIf('defeat', aliveMembers.length === 0)) return;
 
-    const turnResult = this.enemyAI.executeTurn(enemy, aliveMembers);
-    this.addLogs(turnResult.logs);
+    // EnemyAI が Action とターゲットを選択
+    const { action, target } = this.enemyAI.decideAction(enemy, aliveMembers);
+
+    // ActionContext を作成（敵から見た視点）
+    const context: ActionContext = {
+      performer: enemy,
+      allies: this.getAliveEnemies(),
+      enemies: aliveMembers,
+    };
+
+    // Action を実行
+    const result = action.execute(target, context);
+    this.addLogs(result.logs);
+    this.notifyListeners();
 
     if (this.endBattleIf('defeat', this.party.isAllDead())) return;
 

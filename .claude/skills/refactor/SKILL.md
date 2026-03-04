@@ -8,7 +8,15 @@ disable-model-invocation: true
 
 以下の手順でリファクタリングを実施してください。
 
-## Step 1: 設計ドキュメント作成
+## Step 1: ブランチ作成
+
+`feature/{変更名}` ブランチを作成:
+
+```bash
+git checkout -b feature/{変更名}
+```
+
+## Step 2: 設計ドキュメント作成
 
 `docs/changes/YYYYMMDD-{変更名}/design.md` を作成:
 
@@ -40,25 +48,26 @@ disable-model-invocation: true
 - [ ] 実装開始
 ```
 
-## Step 2: ユーザー承認
+## Step 3: ユーザー承認
 
 設計ドキュメントを提示し、承認を得てから実装開始。
 
-## Step 3: 実装
+## Step 4: 実装
 
 - TodoWriteでタスク管理
 - 小さな単位で変更
 - 各ステップ後に型チェック (`npx tsc --noEmit`)
 
-## Step 4: テスト
+## Step 5: テスト
 
 - 純粋関数には必ずテスト追加
 - `npm test` で全テスト通過確認
 
-## Step 5: コミット
+## Step 6: コミット・PR
 
 - 変更単位でコミット
-- design.mdは参照用に残す（またはコミット後削除）
+- design.mdは参照用に残す
+- PRを作成してレビュー依頼
 
 ---
 
