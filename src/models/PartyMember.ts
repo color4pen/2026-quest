@@ -13,12 +13,18 @@ import { ManaPoints } from './values/ManaPoints';
 import { ExperienceManager } from './components/ExperienceManager';
 import { StatusEffectManager } from './components/StatusEffectManager';
 import { EquipmentManager } from './components/EquipmentManager';
+import type { Combatant } from './Combatant';
+import type { Action } from './actions/Action';
+import { AttackAction } from './actions/AttackAction';
+import { DefendAction } from './actions/DefendAction';
+import { SkillAction } from './actions/SkillAction';
 
 /**
  * パーティーメンバークラス
  * 個別のキャラクターを表現（インベントリ・お金はPartyで共有管理）
+ * Combatant インターフェースを実装し、戦闘時の行動を自己管理
  */
-export class PartyMember {
+export class PartyMember implements Combatant {
   public readonly id: string;
   public readonly name: string;
   public readonly memberClass: PartyMemberClass;
@@ -73,6 +79,7 @@ export class PartyMember {
   get xp(): number { return this.experience.xp; }
   get xpToNext(): number { return this.experience.xpToNext; }
   get attack(): number { return this._attack; }
+  get defense(): number { return this.getEffectiveDefense(); }
   get isDefending(): boolean { return this._isDefending; }
   get baseDefense(): number { return this._baseDefense; }
   get skills(): SkillDefinition[] { return [...this._skills]; }
@@ -387,6 +394,34 @@ export class PartyMember {
     this.experience.restoreState(level, xp, xpToNext);
     this._attack = baseAttack;
     this._baseDefense = baseDefense;
+  }
+
+  // ==================== Rich Domain Model ====================
+
+  /**
+   * このキャラクターが実行可能な行動一覧を取得
+   * 基本行動（攻撃、防御）+ スキル + 装備から付与された行動
+   */
+  getAvailableActions(): Action[] {
+    const actions: Action[] = [
+      new AttackAction(),
+      new DefendAction(),
+    ];
+
+    // スキルから行動追加
+    for (const skill of this._skills) {
+      actions.push(new SkillAction(skill));
+    }
+
+    // TODO: 装備から付与された行動を追加
+    // const equipment = this.equipment.getAll();
+    // for (const equip of Object.values(equipment)) {
+    //   if (equip?.grantedActions) {
+    //     actions.push(...equip.grantedActions);
+    //   }
+    // }
+
+    return actions;
   }
 
   /**

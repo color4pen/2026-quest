@@ -1,121 +1,119 @@
 import { BattleLogEntry, SkillDefinition } from '../types/game';
-import { Party, PartyMember, DamageItem, HealItem, CureItem } from '../models';
+import { Party, PartyMember } from '../models';
 import { Enemy } from '../models/Enemy';
+import { AttackAction, DefendAction, SkillAction, ItemAction } from '../models/actions';
+import type { ActionContext } from '../models/actions';
 
 export interface ActionLog {
   text: string;
   type: BattleLogEntry['type'];
 }
 
+/**
+ * バトルアクション実行クラス
+ * 内部で Action クラスを使用して処理を委譲
+ */
 export class BattleActionExecutor {
   constructor(
     private party: Party,
     private enemies: Enemy[],
   ) {}
 
+  /**
+   * ActionContext を作成
+   */
+  private createContext(member: PartyMember): ActionContext {
+    return {
+      performer: {
+        id: member.id,
+        name: member.name,
+        attack: member.getEffectiveAttack(),
+        defense: member.getEffectiveDefense(),
+        isDefending: member.isDefending,
+        isAlive: () => member.isAlive(),
+      },
+      allies: this.party.getAliveMembers().map(m => ({
+        id: m.id,
+        name: m.name,
+        isAlive: () => m.isAlive(),
+      })),
+      enemies: this.enemies.map(e => ({
+        id: e.id,
+        name: e.name,
+        isAlive: () => e.isAlive(),
+        isDead: () => e.isDead(),
+      })),
+    };
+  }
+
   executeAttack(member: PartyMember, targetIndex: number): ActionLog[] {
     const target = this.enemies[targetIndex];
     if (!target || target.isDead()) return [];
 
-    const damage = member.calculateAttackDamage();
-    target.takeDamage(damage);
+    const action = new AttackAction();
+    const context = this.createContext(member);
+    const result = action.execute(target, context);
 
-    const logs: ActionLog[] = [
-      { text: `${member.name}の攻撃！`, type: 'player' },
-      { text: `${target.name}に ${damage} のダメージ！`, type: 'damage' },
-    ];
-
-    if (target.isDead()) {
-      logs.push({ text: `${target.name}を倒した！`, type: 'system' });
-    }
-
-    return logs;
+    return result.logs;
   }
 
   executeSkill(member: PartyMember, skill: SkillDefinition, targetIndex?: number, partyTargetId?: string): ActionLog[] {
-    if (!member.useMp(skill.mpCost)) return [];
-
-    const logs: ActionLog[] = [];
-
-    if (skill.type === 'attack' && targetIndex !== undefined) {
-      const target = this.enemies[targetIndex];
-      if (!target || target.isDead()) return logs;
-
-      const damage = member.calculateSkillDamage(skill);
-      target.takeDamage(damage);
-
-      logs.push({ text: `${member.name}の${skill.name}！`, type: 'player' });
-      logs.push({ text: `${target.name}に ${damage} のダメージ！`, type: 'damage' });
-
-      if (target.isDead()) {
-        logs.push({ text: `${target.name}を倒した！`, type: 'system' });
-      }
-    } else if (skill.type === 'heal') {
-      const target = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
-      if (!target) return logs;
-
-      const healed = target.heal(skill.power);
-      logs.push({ text: `${member.name}の${skill.name}！`, type: 'player' });
-      logs.push({ text: `${target.name}のHPが ${healed} 回復した！`, type: 'heal' });
+    // MP不足チェック（後方互換性のため、空配列を返す）
+    if (!member.canUseSkill(skill)) {
+      return [];
     }
 
-    return logs;
+    const action = new SkillAction(skill);
+    const context = this.createContext(member);
+
+    // ターゲット決定
+    let target: PartyMember | Enemy | null = null;
+    if (skill.type === 'attack' && targetIndex !== undefined) {
+      target = this.enemies[targetIndex];
+      if (!target || target.isDead()) return [];
+    } else if (skill.type === 'heal') {
+      target = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
+    }
+
+    // MP消費用のオブジェクトを渡す
+    const mpUser = { useMp: (cost: number) => member.useMp(cost) };
+    const result = action.execute(target, context, mpUser);
+
+    return result.logs;
   }
 
   executeItem(member: PartyMember, itemId: string, targetIndex?: number, partyTargetId?: string): ActionLog[] {
-    const item = this.party.consumeItem(itemId);
+    // まずアイテムを取得（消費はActionで行う）
+    const item = this.party.getItem(itemId);
     if (!item) return [];
 
-    const logs: ActionLog[] = [
-      { text: `${member.name}は${item.name}を使った！`, type: 'player' },
-    ];
+    const action = new ItemAction(item);
+    const context = this.createContext(member);
 
-    switch (item.type) {
-      case 'heal': {
-        const healTarget = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
-        if (healTarget && item instanceof HealItem) {
-          const healed = healTarget.heal(item.healAmount);
-          logs.push({ text: `${healTarget.name}のHPが ${healed} 回復した！`, type: 'heal' });
-        }
-        break;
-      }
-      case 'damage': {
-        if (targetIndex !== undefined && item instanceof DamageItem) {
-          const target = this.enemies[targetIndex];
-          if (target && !target.isDead()) {
-            target.takeDamage(item.damage);
-            logs.push({ text: `${target.name}に ${item.damage} のダメージ！`, type: 'damage' });
-            if (target.isDead()) {
-              logs.push({ text: `${target.name}を倒した！`, type: 'system' });
-            }
-          }
-        }
-        break;
-      }
-      case 'cure': {
-        const cureTarget = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
-        if (cureTarget && item instanceof CureItem) {
-          if (cureTarget.hasStatusEffect(item.cureEffect)) {
-            cureTarget.removeStatusEffect(item.cureEffect);
-            const effectNames: Record<string, string> = {
-              poison: '毒',
-              influenza: 'インフルエンザ',
-            };
-            const effectName = effectNames[item.cureEffect] || item.cureEffect;
-            logs.push({ text: `${cureTarget.name}の${effectName}が治った！`, type: 'heal' });
-          } else {
-            logs.push({ text: `しかし効果がなかった...`, type: 'system' });
-          }
-        }
-        break;
-      }
+    // ターゲット決定
+    let target: PartyMember | Enemy | null = null;
+    if (item.isTargetEnemy() && targetIndex !== undefined) {
+      target = this.enemies[targetIndex];
+      if (!target || target.isDead()) return [];
+    } else if (item.isTargetAlly()) {
+      target = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
     }
 
-    return logs;
+    // アイテム消費用のオブジェクトを渡す
+    const itemConsumer = { consumeItem: (id: string) => this.party.consumeItem(id) };
+    const result = action.execute(target, context, itemConsumer);
+
+    return result.logs;
   }
 
   executeDefend(member: PartyMember): ActionLog[] {
-    member.defend();
-    return [{ text: `${member.name}は防御の構えをとった！`, type: 'player' }];
+    const action = new DefendAction();
+    const context = this.createContext(member);
+
+    // 防御状態を設定するための参照を渡す
+    const performerRef = { defend: () => member.defend() };
+    const result = action.execute(null, context, performerRef);
+
+    return result.logs;
   }
 }
