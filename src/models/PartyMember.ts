@@ -3,7 +3,6 @@ import {
   PartyMemberClass,
   PartyMemberDefinition,
   PartyMemberState,
-  DEFAULT_LEVEL_UP_BONUS,
   EquipmentSlot,
   EquipmentSlotState,
 } from '../types/party';
@@ -14,6 +13,7 @@ import { CombatCalculator } from '../engine/CombatCalculator';
 import { HitPoints } from './values/HitPoints';
 import { ManaPoints } from './values/ManaPoints';
 import { EquipmentStatBlock } from './values/EquipmentStatBlock';
+import { ExperienceManager } from './components/ExperienceManager';
 
 /**
  * パーティーメンバークラス
@@ -28,11 +28,11 @@ export class PartyMember {
   // ステータス（値オブジェクトで管理）
   private _hp: HitPoints;
   private _mp: ManaPoints;
-  private _level: number;
-  private _xp: number;
-  private _xpToNext: number;
   private _attack: number;
   private _skills: SkillDefinition[];
+
+  // 経験値・レベル管理
+  private readonly experience: ExperienceManager;
 
   // バトル用フラグ
   private _isDefending: boolean = false;
@@ -54,9 +54,6 @@ export class PartyMember {
   // 状態異常
   private statusEffects: StatusEffect[] = [];
 
-  // レベルアップボーナス
-  private levelUpBonus: { hp: number; mp: number; attack: number };
-
   constructor(definition: PartyMemberDefinition) {
     this.id = definition.id;
     this.name = definition.name;
@@ -68,20 +65,11 @@ export class PartyMember {
     this._mp = ManaPoints.create(definition.baseStats.maxMp);
     this._attack = definition.baseStats.attack;
 
-    // レベル・経験値
-    this._level = 1;
-    this._xp = 0;
-    this._xpToNext = 100;
-
     // スキル
     this._skills = [...definition.skills];
 
-    // レベルアップボーナス
-    this.levelUpBonus = definition.levelUpBonus ?? {
-      hp: DEFAULT_LEVEL_UP_BONUS.hp,
-      mp: DEFAULT_LEVEL_UP_BONUS.mp,
-      attack: DEFAULT_LEVEL_UP_BONUS.attack,
-    };
+    // 経験値・レベル管理
+    this.experience = new ExperienceManager(definition.levelUpBonus);
   }
 
   // ==================== getter ====================
@@ -90,9 +78,9 @@ export class PartyMember {
   get maxHp(): number { return this._hp.max; }
   get mp(): number { return this._mp.current; }
   get maxMp(): number { return this._mp.max; }
-  get level(): number { return this._level; }
-  get xp(): number { return this._xp; }
-  get xpToNext(): number { return this._xpToNext; }
+  get level(): number { return this.experience.level; }
+  get xp(): number { return this.experience.xp; }
+  get xpToNext(): number { return this.experience.xpToNext; }
   get attack(): number { return this._attack; }
   get isDefending(): boolean { return this._isDefending; }
   get baseDefense(): number { return this._baseDefense; }
@@ -200,28 +188,22 @@ export class PartyMember {
    * @returns レベルアップしたかどうか
    */
   gainXp(amount: number): boolean {
-    this._xp += amount;
-
-    if (this._xp >= this._xpToNext) {
-      this.levelUp();
+    const result = this.experience.gainXp(amount);
+    if (result) {
+      this.applyLevelUp(result.hpBonus, result.mpBonus, result.attackBonus);
       return true;
     }
-
     return false;
   }
 
   /**
-   * レベルアップ処理
+   * レベルアップ時のステータス適用
    */
-  private levelUp(): void {
-    this._level++;
-    this._xp -= this._xpToNext;
-    this._xpToNext = Math.floor(this._xpToNext * DEFAULT_LEVEL_UP_BONUS.xpMultiplier);
-
+  private applyLevelUp(hpBonus: number, mpBonus: number, attackBonus: number): void {
     // ステータス上昇 + 全回復
-    this._hp = HitPoints.create(this._hp.max + this.levelUpBonus.hp);
-    this._mp = ManaPoints.create(this._mp.max + this.levelUpBonus.mp);
-    this._attack += this.levelUpBonus.attack;
+    this._hp = HitPoints.create(this._hp.max + hpBonus);
+    this._mp = ManaPoints.create(this._mp.max + mpBonus);
+    this._attack += attackBonus;
   }
 
   /**
@@ -470,9 +452,7 @@ export class PartyMember {
   ): void {
     this._hp = HitPoints.of(hp, baseMaxHp);
     this._mp = ManaPoints.of(mp, baseMaxMp);
-    this._level = level;
-    this._xp = xp;
-    this._xpToNext = xpToNext;
+    this.experience.restoreState(level, xp, xpToNext);
     this._attack = baseAttack;
     this._baseDefense = baseDefense;
   }
@@ -490,9 +470,9 @@ export class PartyMember {
       maxHp: this.getEffectiveMaxHp(),
       mp: this._mp.current,
       maxMp: this.getEffectiveMaxMp(),
-      level: this.level,
-      xp: this.xp,
-      xpToNext: this.xpToNext,
+      level: this.experience.level,
+      xp: this.experience.xp,
+      xpToNext: this.experience.xpToNext,
       attack: this.getEffectiveAttack(),
       defense: this.getEffectiveDefense(),
       skills: [...this._skills],
