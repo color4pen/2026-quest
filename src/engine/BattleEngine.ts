@@ -7,8 +7,10 @@ import {
   SkillDefinition,
   PartyMemberAction,
 } from '../types/game';
-import { Party, PartyMember, DamageItem, HealItem, CureItem } from '../models';
+import { Party, PartyMember } from '../models';
 import { Enemy } from '../models/Enemy';
+import { BattleActionExecutor, ActionLog } from './BattleActionExecutor';
+import { EnemyAI } from './EnemyAI';
 
 export type BattleEventListener = (state: BattleState) => void;
 
@@ -31,6 +33,8 @@ export class BattleEngine {
   private pendingAction: { type: 'attack' | 'skill' | 'item'; skill?: SkillDefinition; itemId?: string } | null;
   private listeners: Set<BattleEventListener>;
   private onBattleEnd: ((result: BattleResult, enemies: Enemy[]) => void) | null;
+  private executor: BattleActionExecutor;
+  private enemyAI: EnemyAI;
 
   // アニメーション用タイマー管理
   private pendingTimers: ReturnType<typeof setTimeout>[] = [];
@@ -54,6 +58,8 @@ export class BattleEngine {
     this.pendingAction = null;
     this.listeners = new Set();
     this.onBattleEnd = null;
+    this.executor = new BattleActionExecutor(party, enemies);
+    this.enemyAI = new EnemyAI();
 
     // 全員の防御状態をリセット
     this.party.resetAllDefend();
@@ -403,109 +409,20 @@ export class BattleEngine {
     }, 400);
   }
 
-  /**
-   * 通常攻撃を実行
-   */
   private executeAttack(member: PartyMember, targetIndex: number): void {
-    const target = this.enemies[targetIndex];
-    if (!target || target.isDead()) return;
-
-    const damage = member.calculateAttackDamage();
-    target.takeDamage(damage);
-
-    this.addLog(`${member.name}の攻撃！`, 'player');
-    this.addLog(`${target.name}に ${damage} のダメージ！`, 'damage');
-
-    if (target.isDead()) {
-      this.addLog(`${target.name}を倒した！`, 'system');
-    }
+    this.addLogs(this.executor.executeAttack(member, targetIndex));
   }
 
-  /**
-   * スキルを実行
-   */
   private executeSkill(member: PartyMember, skill: SkillDefinition, targetIndex?: number, partyTargetId?: string): void {
-    if (!member.useMp(skill.mpCost)) return;
-
-    if (skill.type === 'attack' && targetIndex !== undefined) {
-      const target = this.enemies[targetIndex];
-      if (!target || target.isDead()) return;
-
-      const damage = member.calculateSkillDamage(skill);
-      target.takeDamage(damage);
-
-      this.addLog(`${member.name}の${skill.name}！`, 'player');
-      this.addLog(`${target.name}に ${damage} のダメージ！`, 'damage');
-
-      if (target.isDead()) {
-        this.addLog(`${target.name}を倒した！`, 'system');
-      }
-    } else if (skill.type === 'heal') {
-      const target = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
-      if (!target) return;
-
-      const healed = target.heal(skill.power);
-      this.addLog(`${member.name}の${skill.name}！`, 'player');
-      this.addLog(`${target.name}のHPが ${healed} 回復した！`, 'heal');
-    }
+    this.addLogs(this.executor.executeSkill(member, skill, targetIndex, partyTargetId));
   }
 
-  /**
-   * アイテムを実行
-   */
   private executeItem(member: PartyMember, itemId: string, targetIndex?: number, partyTargetId?: string): void {
-    const item = this.party.consumeItem(itemId);
-    if (!item) return;
-
-    this.addLog(`${member.name}は${item.name}を使った！`, 'player');
-
-    switch (item.type) {
-      case 'heal':
-        const healTarget = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
-        if (healTarget && item instanceof HealItem) {
-          const healed = healTarget.heal(item.healAmount);
-          this.addLog(`${healTarget.name}のHPが ${healed} 回復した！`, 'heal');
-        }
-        break;
-      case 'damage':
-        if (targetIndex !== undefined && item instanceof DamageItem) {
-          const target = this.enemies[targetIndex];
-          if (target && !target.isDead()) {
-            target.takeDamage(item.damage);
-            this.addLog(`${target.name}に ${item.damage} のダメージ！`, 'damage');
-            if (target.isDead()) {
-              this.addLog(`${target.name}を倒した！`, 'system');
-            }
-          }
-        }
-        break;
-      case 'cure':
-        // 汎用状態異常治療
-        const cureTarget = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
-        if (cureTarget && item instanceof CureItem) {
-          if (cureTarget.hasStatusEffect(item.cureEffect)) {
-            cureTarget.removeStatusEffect(item.cureEffect);
-            // 状態異常名を取得して表示
-            const effectNames: Record<string, string> = {
-              poison: '毒',
-              influenza: 'インフルエンザ',
-            };
-            const effectName = effectNames[item.cureEffect] || item.cureEffect;
-            this.addLog(`${cureTarget.name}の${effectName}が治った！`, 'heal');
-          } else {
-            this.addLog(`しかし効果がなかった...`, 'system');
-          }
-        }
-        break;
-    }
+    this.addLogs(this.executor.executeItem(member, itemId, targetIndex, partyTargetId));
   }
 
-  /**
-   * 防御を実行
-   */
   private executeDefend(member: PartyMember): void {
-    member.defend();
-    this.addLog(`${member.name}は防御の構えをとった！`, 'player');
+    this.addLogs(this.executor.executeDefend(member));
   }
 
   // ==================== 敵フェーズ ====================
@@ -540,7 +457,6 @@ export class BattleEngine {
    * 敵のターンを実行
    */
   private executeEnemyTurn(enemy: Enemy): void {
-    const action = this.decideEnemyAction(enemy);
     const aliveMembers = this.getAliveMembers();
 
     if (aliveMembers.length === 0) {
@@ -553,36 +469,8 @@ export class BattleEngine {
       return;
     }
 
-    if (action === 'wait') {
-      this.addLog(`${enemy.name}は様子を見ている...`, 'enemy');
-    } else {
-      // ランダムな生存メンバーを攻撃
-      const targetMember = aliveMembers[Math.floor(Math.random() * aliveMembers.length)];
-      const damage = enemy.calculateAttackDamage();
-      const bonusDamage = action === 'power_attack' ? Math.floor(damage * 0.5) : 0;
-      const totalDamage = damage + bonusDamage;
-      const actualDamage = targetMember.takeDamage(totalDamage);
-
-      if (action === 'power_attack') {
-        this.addLog(`${enemy.name}の強攻撃！`, 'enemy');
-      } else if (targetMember.isDefending) {
-        this.addLog(`${enemy.name}の攻撃！${targetMember.name}は防御した！`, 'enemy');
-      } else {
-        this.addLog(`${enemy.name}の攻撃！`, 'enemy');
-      }
-      this.addLog(`${targetMember.name}に ${actualDamage} のダメージ！`, 'damage');
-
-      // 毒攻撃判定（特定の敵は毒を付与する可能性がある）
-      const poisonChance = enemy.battleConfig.poisonChance ?? 0;
-      if (poisonChance > 0 && !targetMember.isPoisoned && targetMember.isAlive() && Math.random() < poisonChance) {
-        targetMember.poison();
-        this.addLog(`${targetMember.name}は毒を受けた！`, 'damage');
-      }
-
-      if (targetMember.isDead()) {
-        this.addLog(`${targetMember.name}は倒れた！`, 'system');
-      }
-    }
+    const turnResult = this.enemyAI.executeTurn(enemy, aliveMembers);
+    this.addLogs(turnResult.logs);
 
     // 敗北チェック
     if (this.party.isAllDead()) {
@@ -655,23 +543,13 @@ export class BattleEngine {
     }
   }
 
-  /**
-   * 敵の行動を決定
-   */
-  private decideEnemyAction(enemy: Enemy): 'attack' | 'power_attack' | 'wait' {
-    const aiType = enemy.battleConfig.aiType;
-    const rand = Math.random();
 
-    switch (aiType) {
-      case 'aggressive':
-        return rand < 0.3 ? 'power_attack' : 'attack';
-      case 'defensive':
-        return rand < 0.3 ? 'wait' : 'attack';
-      case 'random':
-      default:
-        if (rand < 0.2) return 'power_attack';
-        if (rand < 0.4) return 'wait';
-        return 'attack';
+  /**
+   * 複数ログを一括追加
+   */
+  private addLogs(logs: ActionLog[]): void {
+    for (const log of logs) {
+      this.addLog(log.text, log.type);
     }
   }
 
