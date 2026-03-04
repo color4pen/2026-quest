@@ -4,16 +4,15 @@ import {
   PartyMemberDefinition,
   PartyMemberState,
   EquipmentSlot,
-  EquipmentSlotState,
 } from '../types/party';
 import type { StatusEffectType, StatusEffectInfo } from '../types/statusEffect';
 import { EquipmentItem } from './items/EquipmentItem';
 import { CombatCalculator } from '../engine/CombatCalculator';
 import { HitPoints } from './values/HitPoints';
 import { ManaPoints } from './values/ManaPoints';
-import { EquipmentStatBlock } from './values/EquipmentStatBlock';
 import { ExperienceManager } from './components/ExperienceManager';
 import { StatusEffectManager } from './components/StatusEffectManager';
+import { EquipmentManager } from './components/EquipmentManager';
 
 /**
  * パーティーメンバークラス
@@ -40,16 +39,8 @@ export class PartyMember {
   // 基本防御力
   private _baseDefense: number = 0;
 
-  // 装備スロット
-  private equipment: {
-    weapon: EquipmentItem | null;
-    armor: EquipmentItem | null;
-    accessory: EquipmentItem | null;
-  } = {
-    weapon: null,
-    armor: null,
-    accessory: null,
-  };
+  // 装備管理
+  private readonly equipment: EquipmentManager = new EquipmentManager();
 
   // 状態異常管理
   private readonly statusEffects: StatusEffectManager = new StatusEffectManager();
@@ -301,10 +292,7 @@ export class PartyMember {
    * @returns 以前装備していたアイテム（なければnull）
    */
   equip(item: EquipmentItem): EquipmentItem | null {
-    const slot = item.slot;
-    const previous = this.equipment[slot];
-    this.equipment[slot] = item;
-    return previous;
+    return this.equipment.equip(item);
   }
 
   /**
@@ -312,73 +300,49 @@ export class PartyMember {
    * @returns 外した装備品（なければnull）
    */
   unequip(slot: EquipmentSlot): EquipmentItem | null {
-    const item = this.equipment[slot];
-    this.equipment[slot] = null;
-    return item;
+    return this.equipment.unequip(slot);
   }
 
   /**
    * 指定スロットの装備を取得
    */
   getEquipmentAt(slot: EquipmentSlot): EquipmentItem | null {
-    return this.equipment[slot];
+    return this.equipment.getAt(slot);
   }
 
   /**
    * 全装備を取得
    */
-  getEquipment(): { weapon: EquipmentItem | null; armor: EquipmentItem | null; accessory: EquipmentItem | null } {
-    return { ...this.equipment };
-  }
-
-  /**
-   * 全装備のステータスボーナスを合算
-   */
-  private getEquipmentBonuses(): EquipmentStatBlock {
-    return EquipmentStatBlock.sum(
-      this.equipment.weapon ? EquipmentStatBlock.fromEquipmentStats(this.equipment.weapon.stats) : null,
-      this.equipment.armor ? EquipmentStatBlock.fromEquipmentStats(this.equipment.armor.stats) : null,
-      this.equipment.accessory ? EquipmentStatBlock.fromEquipmentStats(this.equipment.accessory.stats) : null,
-    );
+  getEquipment() {
+    return this.equipment.getAll();
   }
 
   /**
    * 装備込みの攻撃力を取得
    */
   getEffectiveAttack(): number {
-    return this._attack + this.getEquipmentBonuses().attack;
+    return this._attack + this.equipment.getBonuses().attack;
   }
 
   /**
    * 装備込みの防御力を取得
    */
   getEffectiveDefense(): number {
-    return this._baseDefense + this.getEquipmentBonuses().defense;
+    return this._baseDefense + this.equipment.getBonuses().defense;
   }
 
   /**
    * 装備込みの最大HPを取得
    */
   getEffectiveMaxHp(): number {
-    return this._hp.max + this.getEquipmentBonuses().maxHp;
+    return this._hp.max + this.equipment.getBonuses().maxHp;
   }
 
   /**
    * 装備込みの最大MPを取得
    */
   getEffectiveMaxMp(): number {
-    return this._mp.max + this.getEquipmentBonuses().maxMp;
-  }
-
-  /**
-   * 装備状態を取得（React用）
-   */
-  getEquipmentState(): EquipmentSlotState {
-    return {
-      weapon: this.equipment.weapon?.getEquipmentInfo() ?? null,
-      armor: this.equipment.armor?.getEquipmentInfo() ?? null,
-      accessory: this.equipment.accessory?.getEquipmentInfo() ?? null,
-    };
+    return this._mp.max + this.equipment.getBonuses().maxMp;
   }
 
   // ==================== 後方互換性のためのヘルパー ====================
@@ -448,7 +412,7 @@ export class PartyMember {
       isDefending: this._isDefending,
       isPoisoned: this.isPoisoned,
       statusEffects: this.getStatusEffectInfos(),
-      equipment: this.getEquipmentState(),
+      equipment: this.equipment.getState(),
     };
   }
 }
