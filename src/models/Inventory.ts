@@ -13,7 +13,7 @@ export interface InventoryEntry {
  * インベントリ状態（React用）
  */
 export interface InventoryState {
-  item: ReturnType<Item['getInfo']>;
+  item: ReturnType<Item['getInfo']> & { equipSlot?: import('../types/party').EquipmentSlot };
   quantity: number;
   canUseInMenu: boolean;
   canUseInBattle: boolean;
@@ -205,7 +205,10 @@ export class Inventory {
    */
   getState(): InventoryState[] {
     return this.getAll().map(entry => ({
-      item: entry.item.getInfo(),
+      item: {
+        ...entry.item.getInfo(),
+        equipSlot: entry.item instanceof EquipmentItem ? entry.item.slot : undefined,
+      },
       quantity: entry.quantity,
       canUseInMenu: entry.item.canUseInMenu(),
       canUseInBattle: entry.item.canUseInBattle(),

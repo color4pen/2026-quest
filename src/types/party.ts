@@ -47,6 +47,7 @@ export interface InventoryItemState {
     name: string;
     description: string;
     type: ItemType;
+    equipSlot?: EquipmentSlot;
   };
   quantity: number;
   canUseInMenu: boolean;
