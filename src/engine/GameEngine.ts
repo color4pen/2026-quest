@@ -18,6 +18,10 @@ import {
 } from '../types/game';
 import { SaveData, SaveSlotInfo } from '../types/save';
 import { SaveManager } from '../services/SaveManager';
+import { GameCommand } from './calculators/types';
+import { calculatePurchaseCommands } from './calculators/ShopCalculator';
+import { calculateBattleEndCommands } from './calculators/BattleCalculator';
+import { calculateHealCommands } from './calculators/DialogueCalculator';
 import {
   Player,
   PlayerState,
@@ -303,50 +307,8 @@ export class GameEngine {
   }
 
   private handleBattleEnd(result: BattleResult, enemies: Enemy[]): void {
-    if (result === 'victory') {
-      // 全敵からの報酬を合算
-      const totalXp = enemies.reduce((sum, e) => sum + e.xpReward, 0);
-      const totalGold = enemies.reduce((sum, e) => sum + e.goldReward, 0);
-
-      this.addMessage('戦闘に勝利した！', 'combat');
-      this.addMessage(
-        `${totalXp} XP と ${totalGold} ゴールドを獲得！`,
-        'loot'
-      );
-
-      // パーティーにゴールド追加
-      this.party.addGold(totalGold);
-
-      // 生存メンバーに経験値を均等分配
-      const aliveMembers = this.party.getAliveMembers();
-      if (aliveMembers.length > 0) {
-        const xpPerMember = Math.floor(totalXp / aliveMembers.length);
-        for (const member of aliveMembers) {
-          const leveledUp = member.gainXp(xpPerMember);
-          if (leveledUp) {
-            this.addMessage(
-              `★ ${member.name}がレベルアップ！レベル ${member.getState().level} になった！★`,
-              'level-up'
-            );
-          }
-        }
-      }
-
-      // 撃破時の状態変更（ボス撃破フラグなど）
-      for (const enemy of enemies) {
-        const onDefeat = enemy.battleConfig.onDefeat;
-        if (onDefeat) {
-          for (const change of onDefeat) {
-            this.gameStateManager.set(change.key as StateKey, change.value);
-          }
-        }
-      }
-
-      // パーティー全員の戦闘後回復
-      this.party.recoverAllAfterBattle();
-    } else if (result === 'defeat') {
-      this.addMessage('敗北した...ゲームオーバー', 'combat');
-    }
+    const commands = calculateBattleEndCommands(result, enemies);
+    this.executeCommands(commands);
   }
 
   public closeBattle(): void {
@@ -432,26 +394,21 @@ export class GameEngine {
   }
 
   public buyItem(shopItem: ShopItem): boolean {
-    if (this.party.getGold() < shopItem.price) {
-      this.addMessage('ゴールドが足りない！', 'normal');
+    const result = calculatePurchaseCommands(shopItem, this.party.getGold());
+
+    if (!result.success) {
+      this.addMessage(result.message, 'normal');
       this.notifyListeners();
       return false;
     }
 
-    if (shopItem.stock === 0) {
-      this.addMessage('在庫切れだ！', 'normal');
-      this.notifyListeners();
-      return false;
-    }
+    this.executeCommands(result.commands);
 
-    this.party.spendGold(shopItem.price);
-    this.party.addItemById(shopItem.item.id);
-
+    // 在庫を減らす（ShopItem自体の変更はここで行う）
     if (shopItem.stock > 0) {
       shopItem.stock--;
     }
 
-    this.addMessage(`${shopItem.item.name}を購入した！`, 'loot');
     this.notifyListeners();
     return true;
   }
@@ -517,14 +474,13 @@ export class GameEngine {
   // ==================== 宿屋（回復）関連 ====================
 
   private handleHeal(cost: number): boolean {
-    if (!this.party.spendGold(cost)) {
+    const result = calculateHealCommands(cost, this.party.getGold());
+
+    if (!result.success) {
       return false;
     }
 
-    // パーティー全員を全回復
-    this.party.fullHealAll();
-    this.addMessage('パーティー全員のHPとMPが全回復した！', 'loot');
-
+    this.executeCommands(result.commands);
     return true;
   }
 
@@ -594,6 +550,62 @@ export class GameEngine {
         console.error('Listener error:', e);
       }
     });
+  }
+
+  // ==================== コマンド実行 ====================
+
+  /**
+   * ハンドラから返されたコマンドを実行
+   */
+  private executeCommands(commands: GameCommand[]): void {
+    for (const cmd of commands) {
+      switch (cmd.type) {
+        case 'addMessage':
+          this.addMessage(cmd.text, cmd.messageType);
+          break;
+        case 'addGold':
+          this.party.addGold(cmd.amount);
+          break;
+        case 'spendGold':
+          this.party.spendGold(cmd.amount);
+          break;
+        case 'distributeXp':
+          this.distributeXpToAliveMembers(cmd.xp);
+          break;
+        case 'setGameState':
+          this.gameStateManager.set(cmd.key, cmd.value);
+          break;
+        case 'addItem':
+          this.party.addItemById(cmd.itemId, cmd.quantity);
+          break;
+        case 'fullHealAll':
+          this.party.fullHealAll();
+          break;
+        case 'recoverAllAfterBattle':
+          this.party.recoverAllAfterBattle();
+          break;
+      }
+    }
+    this.markDirty();
+  }
+
+  /**
+   * 経験値を生存メンバーに均等分配
+   */
+  private distributeXpToAliveMembers(totalXp: number): void {
+    const aliveMembers = this.party.getAliveMembers();
+    if (aliveMembers.length === 0) return;
+
+    const xpPerMember = Math.floor(totalXp / aliveMembers.length);
+    for (const member of aliveMembers) {
+      const leveledUp = member.gainXp(xpPerMember);
+      if (leveledUp) {
+        this.addMessage(
+          `★ ${member.name}がレベルアップ！レベル ${member.getState().level} になった！★`,
+          'level-up'
+        );
+      }
+    }
   }
 
   // ==================== パーティー管理 ====================
