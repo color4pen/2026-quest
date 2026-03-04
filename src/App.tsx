@@ -23,26 +23,13 @@ function App() {
 
   const {
     state,
-    gameObjects,  // Unity的：GameObjectsを直接受け取る
-    resetGame,
-    selectBattleCommand,
-    useBattleSkill,
-    useBattleItem,
-    selectBattleTarget,
-    cancelBattleSelection,
-    closeBattle,
-    selectDialogueChoice,
-    closeDialogue,
-    advanceDialogue,
-    buyItem,
-    closeShop,
-    useFieldItem,
-    equipItem,
-    unequipItem,
-    getSaveSlots,
-    saveGame,
-    loadGame,
-    hasSaveData,
+    gameObjects,
+    battle,
+    dialogue,
+    shop,
+    exploration,
+    party,
+    save,
   } = useGameEngine(isPaused);
 
   // ESC/Mキーでユーザーメニュー開閉
@@ -63,7 +50,7 @@ function App() {
 
   // タイトル画面：はじめから
   const handleNewGame = () => {
-    resetGame();
+    exploration.reset();
     setGamePhase('playing');
   };
 
@@ -74,7 +61,7 @@ function App() {
 
   // タイトル画面のロードモーダルからロード
   const handleTitleLoad = (slotId: number) => {
-    const success = loadGame(slotId);
+    const success = save.load(slotId);
     if (success) {
       setShowTitleLoadModal(false);
       setGamePhase('playing');
@@ -85,11 +72,11 @@ function App() {
   const handleResume = () => setIsPaused(false);
 
   const handleSaveToSlot = (slotId: number) => {
-    saveGame(slotId);
+    save.save(slotId);
   };
 
   const handleLoadFromSlot = (slotId: number) => {
-    const success = loadGame(slotId);
+    const success = save.load(slotId);
     if (success) {
       setIsPaused(false);
     }
@@ -107,14 +94,14 @@ function App() {
     return (
       <>
         <TitleScreen
-          hasSaveData={hasSaveData()}
+          hasSaveData={save.hasData()}
           onNewGame={handleNewGame}
           onContinue={handleContinue}
         />
         {showTitleLoadModal && (
           <SaveLoadModal
             mode="load"
-            slots={getSaveSlots()}
+            slots={save.getSlots()}
             onSelectSlot={handleTitleLoad}
             onClose={() => setShowTitleLoadModal(false)}
             fullscreen
@@ -132,7 +119,6 @@ function App() {
         <PlayerStats player={state.party} mapName={state.mapName} />
 
         <div className="center-panel">
-          {/* Unity的：GameObjectsが自身を描画する */}
           <GameCanvas
             gameObjects={gameObjects}
             map={state.map}
@@ -148,12 +134,12 @@ function App() {
         <BattleModal
           battle={state.battle}
           party={state.party}
-          onSelectCommand={selectBattleCommand}
-          onUseSkill={useBattleSkill}
-          onUseItem={useBattleItem}
-          onSelectTarget={selectBattleTarget}
-          onCancel={cancelBattleSelection}
-          onClose={closeBattle}
+          onSelectCommand={battle.selectCommand}
+          onUseSkill={battle.useSkill}
+          onUseItem={battle.useItem}
+          onSelectTarget={battle.selectTarget}
+          onCancel={battle.cancel}
+          onClose={battle.close}
         />
       )}
 
@@ -161,9 +147,9 @@ function App() {
       {state.dialogue && (
         <DialogueModal
           dialogue={state.dialogue}
-          onSelectChoice={selectDialogueChoice}
-          onAdvance={advanceDialogue}
-          onClose={closeDialogue}
+          onSelectChoice={dialogue.selectChoice}
+          onAdvance={dialogue.advance}
+          onClose={dialogue.close}
         />
       )}
 
@@ -172,8 +158,8 @@ function App() {
         <ShopModal
           shop={state.shop}
           playerGold={state.party.gold}
-          onBuyItem={buyItem}
-          onClose={closeShop}
+          onBuyItem={shop.buyItem}
+          onClose={shop.close}
         />
       )}
 
@@ -186,14 +172,14 @@ function App() {
       {isPaused && (
         <PauseMenu
           party={state.party}
-          saveSlots={getSaveSlots()}
+          saveSlots={save.getSlots()}
           onResume={handleResume}
           onSaveToSlot={handleSaveToSlot}
           onLoadFromSlot={handleLoadFromSlot}
           onQuit={handleQuit}
-          onUseItem={useFieldItem}
-          onEquipItem={equipItem}
-          onUnequipItem={unequipItem}
+          onUseItem={party.useFieldItem}
+          onEquipItem={party.equipItem}
+          onUnequipItem={party.unequipItem}
         />
       )}
     </div>
