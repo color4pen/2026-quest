@@ -1,4 +1,6 @@
 import type { Action, ActionContext, ActionResult, ActionTargetType } from './Action';
+import type { Combatant } from '../Combatant';
+import { isPlayerCombatant } from '../Combatant';
 
 /**
  * 防御アクション
@@ -18,13 +20,12 @@ export class DefendAction implements Action {
   }
 
   execute(
-    _target: null,
-    context: ActionContext,
-    performerRef?: { defend(): void }
+    _target: Combatant | null,
+    context: ActionContext
   ): ActionResult {
-    // performerRef が渡された場合、防御状態にする
-    if (performerRef && typeof performerRef.defend === 'function') {
-      performerRef.defend();
+    // performer が PlayerCombatant なら防御状態にする
+    if (isPlayerCombatant(context.performer)) {
+      context.performer.defend();
     }
 
     return {

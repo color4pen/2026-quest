@@ -182,6 +182,10 @@ export class GameEngine {
     this.party.reset();
     this.party.addMember(INITIAL_PARTY_MEMBER);
 
+    // 初期装備を設定
+    this.party.equipItem('engineer', 'wooden_sword');
+    this.party.equipItem('engineer', 'leather_armor');
+
     const initialMember = this.party.getMembers()[0];
     if (initialMember) {
       initialMember.addStatusEffect('influenza');

@@ -1,20 +1,45 @@
 import { DefendAction } from './DefendAction';
 import type { ActionContext } from './Action';
+import type { Combatant, PlayerCombatant } from '../Combatant';
 
 describe('DefendAction', () => {
-  function createContext(overrides?: Partial<ActionContext>): ActionContext {
+  function createMockCombatant(overrides?: Partial<Combatant>): Combatant {
     return {
-      performer: {
-        id: 'hero',
-        name: '勇者',
-        attack: 20,
-        defense: 10,
-        isDefending: false,
-        isAlive: () => true,
-      },
+      id: 'hero',
+      name: '勇者',
+      hp: 100,
+      maxHp: 100,
+      attack: 20,
+      defense: 10,
+      isDefending: false,
+      takeDamage: vi.fn().mockReturnValue(10),
+      takeDamageRaw: vi.fn(),
+      heal: vi.fn().mockReturnValue(10),
+      isAlive: () => true,
+      isDead: () => false,
+      getAvailableActions: () => [],
+      ...overrides,
+    };
+  }
+
+  function createMockPlayerCombatant(overrides?: Partial<PlayerCombatant>): PlayerCombatant {
+    return {
+      ...createMockCombatant(),
+      mp: 30,
+      maxMp: 30,
+      useMp: vi.fn().mockReturnValue(true),
+      canUseSkill: vi.fn().mockReturnValue(true),
+      defend: vi.fn(),
+      resetDefend: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  function createContext(performer: Combatant = createMockCombatant()): ActionContext {
+    return {
+      performer,
       allies: [],
       enemies: [],
-      ...overrides,
     };
   }
 
@@ -50,16 +75,7 @@ describe('DefendAction', () => {
 
     it('死亡していれば実行不可', () => {
       const action = new DefendAction();
-      const context = createContext({
-        performer: {
-          id: 'hero',
-          name: '勇者',
-          attack: 20,
-          defense: 10,
-          isDefending: false,
-          isAlive: () => false,
-        },
-      });
+      const context = createContext(createMockCombatant({ isAlive: () => false }));
 
       expect(action.canExecute(context)).toBe(false);
     });
@@ -86,15 +102,14 @@ describe('DefendAction', () => {
       expect(result.logs[0].type).toBe('player');
     });
 
-    it('performerRef が渡されると defend() が呼ばれる', () => {
+    it('PlayerCombatant の場合 defend() が呼ばれる', () => {
       const action = new DefendAction();
-      const context = createContext();
-      const defendMock = vi.fn();
-      const performerRef = { defend: defendMock };
+      const performer = createMockPlayerCombatant();
+      const context = createContext(performer);
 
-      action.execute(null, context, performerRef);
+      action.execute(null, context);
 
-      expect(defendMock).toHaveBeenCalled();
+      expect(performer.defend).toHaveBeenCalled();
     });
   });
 });

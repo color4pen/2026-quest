@@ -1,4 +1,5 @@
 import type { BattleLogEntry } from '../../types/battle';
+import type { Combatant } from '../Combatant';
 
 /**
  * 行動のターゲットタイプ
@@ -24,28 +25,12 @@ export interface ActionLog {
  * Action.execute() に渡される情報
  */
 export interface ActionContext {
-  /** 行動を実行するキャラクター */
-  performer: {
-    id: string;
-    name: string;
-    attack: number;
-    defense: number;
-    isDefending: boolean;
-    isAlive(): boolean;
-  };
+  /** 行動を実行するキャラクター（Combatant実装） */
+  performer: Combatant;
   /** 味方一覧 */
-  allies: Array<{
-    id: string;
-    name: string;
-    isAlive(): boolean;
-  }>;
+  allies: Combatant[];
   /** 敵一覧 */
-  enemies: Array<{
-    id: string;
-    name: string;
-    isAlive(): boolean;
-    isDead(): boolean;
-  }>;
+  enemies: Combatant[];
 }
 
 /**
@@ -94,7 +79,7 @@ export interface Action {
    * @returns 実行結果
    */
   execute(
-    target: { takeDamage(amount: number): number; heal(amount: number): number; isDead(): boolean; name: string } | null,
+    target: Combatant | null,
     context: ActionContext
   ): ActionResult;
 }

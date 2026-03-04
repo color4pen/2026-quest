@@ -1,4 +1,5 @@
 import type { Action, ActionContext, ActionResult, ActionTargetType } from './Action';
+import type { Combatant } from '../Combatant';
 import { CombatCalculator } from '../../engine/CombatCalculator';
 
 /**
@@ -18,7 +19,7 @@ export class AttackAction implements Action {
   }
 
   execute(
-    target: { takeDamage(amount: number): number; isDead(): boolean; name: string } | null,
+    target: Combatant | null,
     context: ActionContext
   ): ActionResult {
     if (!target) {

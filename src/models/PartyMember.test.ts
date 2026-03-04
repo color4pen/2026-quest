@@ -1,5 +1,6 @@
 import { PartyMember } from './PartyMember';
 import { EquipmentItem } from './items/EquipmentItem';
+import { DoubleAttackAction } from './actions/DoubleAttackAction';
 import { createTestMemberDef } from '../__test-helpers__/factories';
 
 describe('PartyMember', () => {
@@ -199,6 +200,43 @@ describe('PartyMember', () => {
       expect(member.maxMp).toBe(60);
       expect(member.attack).toBe(30);
       expect(member.baseDefense).toBe(10);
+    });
+  });
+
+  describe('getAvailableActions', () => {
+    it('基本行動（攻撃、防御）を返す', () => {
+      const member = new PartyMember(createTestMemberDef({ skills: [] }));
+      const actions = member.getAvailableActions();
+
+      expect(actions.some(a => a.id === 'attack')).toBe(true);
+      expect(actions.some(a => a.id === 'defend')).toBe(true);
+    });
+
+    it('スキルがあればスキルアクションも返す', () => {
+      const member = new PartyMember(createTestMemberDef({
+        skills: [{ id: 'fire', name: '炎', mpCost: 5, type: 'attack', power: 20 }],
+      }));
+      const actions = member.getAvailableActions();
+
+      expect(actions.some(a => a.id === 'skill_fire')).toBe(true);
+    });
+
+    it('装備から付与されたアクションも返す', () => {
+      const member = new PartyMember(createTestMemberDef({ skills: [] }));
+
+      // grantedActionsを持つ装備
+      const weapon = new EquipmentItem(
+        'double_sword',
+        '二刀流の剣',
+        '2回攻撃できる',
+        'weapon',
+        { attack: 5 },
+        { grantedActions: [new DoubleAttackAction()] }
+      );
+      member.equip(weapon);
+
+      const actions = member.getAvailableActions();
+      expect(actions.some(a => a.id === 'double_attack')).toBe(true);
     });
   });
 });

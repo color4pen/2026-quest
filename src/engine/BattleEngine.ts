@@ -9,8 +9,15 @@ import {
 } from '../types/game';
 import { Party, PartyMember } from '../models';
 import { Enemy } from '../models/Enemy';
-import { BattleActionExecutor, ActionLog } from './BattleActionExecutor';
 import { EnemyAI } from './EnemyAI';
+import {
+  AttackAction,
+  DefendAction,
+  SkillAction,
+  ItemAction,
+  type ActionContext,
+  type ActionLog,
+} from '../models/actions';
 
 export type BattleEventListener = (state: BattleState) => void;
 
@@ -33,7 +40,6 @@ export class BattleEngine {
   private pendingAction: { type: 'attack' | 'skill' | 'item'; skill?: SkillDefinition; itemId?: string } | null;
   private listeners: Set<BattleEventListener>;
   private onBattleEnd: ((result: BattleResult, enemies: Enemy[]) => void) | null;
-  private executor: BattleActionExecutor;
   private enemyAI: EnemyAI;
 
   // アニメーション用タイマー管理
@@ -58,7 +64,6 @@ export class BattleEngine {
     this.pendingAction = null;
     this.listeners = new Set();
     this.onBattleEnd = null;
-    this.executor = new BattleActionExecutor(party, enemies);
     this.enemyAI = new EnemyAI();
 
     // 全員の防御状態をリセット
@@ -409,20 +414,81 @@ export class BattleEngine {
     }, 400);
   }
 
+  /**
+   * ActionContext を作成
+   */
+  private createActionContext(performer: PartyMember): ActionContext {
+    return {
+      performer,
+      allies: this.party.getAliveMembers(),
+      enemies: this.getAliveEnemies(),
+    };
+  }
+
   private executeAttack(member: PartyMember, targetIndex: number): void {
-    this.addLogs(this.executor.executeAttack(member, targetIndex));
+    const target = this.enemies[targetIndex];
+    if (!target || target.isDead()) return;
+
+    // 装備から付与された攻撃アクションがあればそれを使用
+    const availableActions = member.getAvailableActions();
+    const equipmentAttack = availableActions.find(
+      a => a.type === 'attack' && a.id !== 'attack'
+    );
+
+    const action = equipmentAttack ?? new AttackAction();
+    const context = this.createActionContext(member);
+    const result = action.execute(target, context);
+    this.addLogs(result.logs);
   }
 
   private executeSkill(member: PartyMember, skill: SkillDefinition, targetIndex?: number, partyTargetId?: string): void {
-    this.addLogs(this.executor.executeSkill(member, skill, targetIndex, partyTargetId));
+    if (!member.canUseSkill(skill)) return;
+
+    const action = new SkillAction(skill);
+    const context = this.createActionContext(member);
+
+    // ターゲット決定
+    let target: PartyMember | Enemy | null = null;
+    if (skill.type === 'attack' && targetIndex !== undefined) {
+      target = this.enemies[targetIndex];
+      if (!target || target.isDead()) return;
+    } else if (skill.type === 'heal') {
+      target = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
+    }
+
+    const result = action.execute(target, context);
+    this.addLogs(result.logs);
   }
 
   private executeItem(member: PartyMember, itemId: string, targetIndex?: number, partyTargetId?: string): void {
-    this.addLogs(this.executor.executeItem(member, itemId, targetIndex, partyTargetId));
+    const item = this.party.getItem(itemId);
+    if (!item) return;
+
+    // アイテムを消費
+    const consumed = this.party.consumeItem(itemId);
+    if (!consumed) return;
+
+    const action = new ItemAction(item);
+    const context = this.createActionContext(member);
+
+    // ターゲット決定
+    let target: PartyMember | Enemy | null = null;
+    if (item.isTargetEnemy() && targetIndex !== undefined) {
+      target = this.enemies[targetIndex];
+      if (!target || target.isDead()) return;
+    } else if (item.isTargetAlly()) {
+      target = partyTargetId ? this.party.getMemberById(partyTargetId) : member;
+    }
+
+    const result = action.execute(target, context);
+    this.addLogs(result.logs);
   }
 
   private executeDefend(member: PartyMember): void {
-    this.addLogs(this.executor.executeDefend(member));
+    const action = new DefendAction();
+    const context = this.createActionContext(member);
+    const result = action.execute(null, context);
+    this.addLogs(result.logs);
   }
 
   // ==================== 敵フェーズ ====================

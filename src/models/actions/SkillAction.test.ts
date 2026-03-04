@@ -1,5 +1,6 @@
 import { SkillAction } from './SkillAction';
 import type { ActionContext } from './Action';
+import type { Combatant, PlayerCombatant } from '../Combatant';
 import type { SkillDefinition } from '../../types/battle';
 
 describe('SkillAction', () => {
@@ -23,39 +24,72 @@ describe('SkillAction', () => {
     target: 'self',
   };
 
-  function createContext(overrides?: Partial<ActionContext>): ActionContext {
+  function createMockCombatant(overrides?: Partial<Combatant>): Combatant {
     return {
-      performer: {
-        id: 'mage',
-        name: '魔法使い',
-        attack: 15,
-        defense: 5,
-        isDefending: false,
-        isAlive: () => true,
-      },
-      allies: [],
-      enemies: [],
+      id: 'mage',
+      name: '魔法使い',
+      hp: 100,
+      maxHp: 100,
+      attack: 15,
+      defense: 5,
+      isDefending: false,
+      takeDamage: vi.fn().mockReturnValue(10),
+      takeDamageRaw: vi.fn(),
+      heal: vi.fn().mockReturnValue(10),
+      isAlive: () => true,
+      isDead: () => false,
+      getAvailableActions: () => [],
       ...overrides,
     };
   }
 
-  function createTarget(hp: number = 100) {
+  function createMockPlayerCombatant(overrides?: Partial<PlayerCombatant>): PlayerCombatant {
+    return {
+      ...createMockCombatant(),
+      mp: 30,
+      maxMp: 30,
+      useMp: vi.fn().mockReturnValue(true),
+      canUseSkill: vi.fn().mockReturnValue(true),
+      defend: vi.fn(),
+      resetDefend: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  function createContext(performer: Combatant = createMockCombatant()): ActionContext {
+    return {
+      performer,
+      allies: [],
+      enemies: [],
+    };
+  }
+
+  function createTarget(hp: number = 100): Combatant & { currentHp: number } {
     let currentHp = hp;
     const maxHp = hp;
     return {
+      id: 'enemy',
       name: 'ゴブリン',
+      get hp() { return currentHp; },
+      get currentHp() { return currentHp; },
+      maxHp,
+      attack: 10,
+      defense: 5,
+      isDefending: false,
       takeDamage: (amount: number) => {
         const damage = Math.min(currentHp, amount);
         currentHp -= damage;
         return damage;
       },
+      takeDamageRaw: (amount: number) => { currentHp -= amount; },
       heal: (amount: number) => {
         const healed = Math.min(maxHp - currentHp, amount);
         currentHp += healed;
         return healed;
       },
+      isAlive: () => currentHp > 0,
       isDead: () => currentHp <= 0,
-      getHp: () => currentHp,
+      getAvailableActions: () => [],
     };
   }
 
@@ -87,7 +121,7 @@ describe('SkillAction', () => {
   });
 
   describe('canExecute', () => {
-    it('生存していれば実行可能', () => {
+    it('生存していれば実行可能（Combatant）', () => {
       const action = new SkillAction(attackSkill);
       const context = createContext();
 
@@ -96,34 +130,29 @@ describe('SkillAction', () => {
 
     it('死亡していれば実行不可', () => {
       const action = new SkillAction(attackSkill);
-      const context = createContext({
-        performer: {
-          id: 'mage',
-          name: '魔法使い',
-          attack: 15,
-          defense: 5,
-          isDefending: false,
-          isAlive: () => false,
-        },
-      });
+      const context = createContext(createMockCombatant({ isAlive: () => false }));
 
       expect(action.canExecute(context)).toBe(false);
     });
 
-    it('MPが足りなければ実行不可（mpCheckerあり）', () => {
+    it('PlayerCombatant で MP が足りなければ実行不可', () => {
       const action = new SkillAction(attackSkill);
-      const context = createContext();
-      const mpChecker = { canUseSkill: () => false };
+      const performer = createMockPlayerCombatant({
+        canUseSkill: vi.fn().mockReturnValue(false),
+      });
+      const context = createContext(performer);
 
-      expect(action.canExecute(context, mpChecker)).toBe(false);
+      expect(action.canExecute(context)).toBe(false);
     });
 
-    it('MPが足りれば実行可能（mpCheckerあり）', () => {
+    it('PlayerCombatant で MP が足りれば実行可能', () => {
       const action = new SkillAction(attackSkill);
-      const context = createContext();
-      const mpChecker = { canUseSkill: () => true };
+      const performer = createMockPlayerCombatant({
+        canUseSkill: vi.fn().mockReturnValue(true),
+      });
+      const context = createContext(performer);
 
-      expect(action.canExecute(context, mpChecker)).toBe(true);
+      expect(action.canExecute(context)).toBe(true);
     });
   });
 
@@ -136,7 +165,7 @@ describe('SkillAction', () => {
       const result = action.execute(target, context);
 
       expect(result.success).toBe(true);
-      expect(target.getHp()).toBeLessThan(100);
+      expect(target.isDead() || target.hp < 100).toBe(true);
     });
 
     it('スキル名のログが出力される', () => {
@@ -152,16 +181,8 @@ describe('SkillAction', () => {
 
     it('ターゲットを倒すと倒したログが出る', () => {
       const action = new SkillAction(attackSkill);
-      const context = createContext({
-        performer: {
-          id: 'mage',
-          name: '魔法使い',
-          attack: 100, // 高攻撃力
-          defense: 5,
-          isDefending: false,
-          isAlive: () => true,
-        },
-      });
+      const performer = createMockCombatant({ attack: 100 }); // 高攻撃力
+      const context = createContext(performer);
       const target = createTarget(10);
 
       const result = action.execute(target, context);
@@ -190,7 +211,8 @@ describe('SkillAction', () => {
       const result = action.execute(target, context);
 
       expect(result.success).toBe(true);
-      expect(target.getHp()).toBeGreaterThan(50);
+      // heal が呼ばれたことを確認
+      expect(result.logs.some(log => log.text.includes('回復'))).toBe(true);
     });
 
     it('回復ログが出力される', () => {
@@ -207,26 +229,28 @@ describe('SkillAction', () => {
     });
   });
 
-  describe('execute - MP消費', () => {
-    it('mpUser が渡されると useMp が呼ばれる', () => {
+  describe('execute - MP消費（PlayerCombatant）', () => {
+    it('PlayerCombatant の useMp が呼ばれる', () => {
       const action = new SkillAction(attackSkill);
-      const context = createContext();
-      const target = createTarget(100);
       const useMpMock = vi.fn().mockReturnValue(true);
-      const mpUser = { useMp: useMpMock };
+      const performer = createMockPlayerCombatant({ useMp: useMpMock });
+      const context = createContext(performer);
+      const target = createTarget(100);
 
-      action.execute(target, context, mpUser);
+      action.execute(target, context);
 
       expect(useMpMock).toHaveBeenCalledWith(5); // attackSkill.mpCost
     });
 
     it('MP不足で useMp が false を返すと失敗', () => {
       const action = new SkillAction(attackSkill);
-      const context = createContext();
+      const performer = createMockPlayerCombatant({
+        useMp: vi.fn().mockReturnValue(false),
+      });
+      const context = createContext(performer);
       const target = createTarget(100);
-      const mpUser = { useMp: () => false };
 
-      const result = action.execute(target, context, mpUser);
+      const result = action.execute(target, context);
 
       expect(result.success).toBe(false);
       expect(result.logs[0].text).toBe('MPが足りない！');

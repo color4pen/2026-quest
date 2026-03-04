@@ -1,4 +1,5 @@
 import type { Action, ActionContext, ActionResult, ActionTargetType } from './Action';
+import type { Combatant } from '../Combatant';
 import type { Item } from '../items/Item';
 import type { HealItem } from '../items/HealItem';
 import type { DamageItem } from '../items/DamageItem';
@@ -6,7 +7,16 @@ import type { CureItem } from '../items/CureItem';
 import type { StatusEffectType } from '../../types/statusEffect';
 
 /**
+ * 状態異常を持つ Combatant の拡張インターフェース
+ */
+interface CombatantWithStatus extends Combatant {
+  hasStatusEffect?(type: StatusEffectType): boolean;
+  removeStatusEffect?(type: StatusEffectType): boolean;
+}
+
+/**
  * アイテム使用アクション
+ * 注意: アイテムの消費は BattleEngine 側で行う
  */
 export class ItemAction implements Action {
   readonly id: string;
@@ -25,7 +35,7 @@ export class ItemAction implements Action {
       return 'single_enemy';
     }
     if (this.item.isTargetAlly()) {
-      return 'self'; // 回復アイテムは自分対象（パーティターゲット選択は別途処理）
+      return 'self';
     }
     return 'none';
   }
@@ -35,33 +45,11 @@ export class ItemAction implements Action {
   }
 
   execute(
-    target: {
-      takeDamage?(amount: number): number;
-      heal?(amount: number): number;
-      isDead?(): boolean;
-      name: string;
-      hp?: number;
-      maxHp?: number;
-      hasStatusEffect?(type: StatusEffectType): boolean;
-      removeStatusEffect?(type: StatusEffectType): boolean;
-      getStatusEffects?(): readonly { type: string }[];
-    } | null,
-    context: ActionContext,
-    itemConsumer?: { consumeItem(itemId: string): Item | null }
+    target: Combatant | null,
+    context: ActionContext
   ): ActionResult {
-    // アイテム消費
-    if (itemConsumer) {
-      const consumed = itemConsumer.consumeItem(this.item.id);
-      if (!consumed) {
-        return {
-          success: false,
-          logs: [{ text: 'アイテムがない！', type: 'system' as const }],
-        };
-      }
-    }
-
-    const logs = [
-      { text: `${context.performer.name}は${this.item.name}を使った！`, type: 'player' as const },
+    const logs: ActionResult['logs'] = [
+      { text: `${context.performer.name}は${this.item.name}を使った！`, type: 'player' },
     ];
 
     // アイテムタイプに応じて処理
@@ -69,77 +57,72 @@ export class ItemAction implements Action {
       case 'heal':
         return this.executeHealItem(target, context, logs);
       case 'damage':
-        return this.executeDamageItem(target, context, logs);
+        return this.executeDamageItem(target, logs);
       case 'cure':
-        return this.executeCureItem(target, context, logs);
+        return this.executeCureItem(target as CombatantWithStatus, context, logs);
       default:
         return {
           success: false,
-          logs: [{ text: 'このアイテムは使用できない！', type: 'system' as const }],
+          logs: [{ text: 'このアイテムは使用できない！', type: 'system' }],
         };
     }
   }
 
   private executeHealItem(
-    target: { heal?(amount: number): number; name: string } | null,
+    target: Combatant | null,
     context: ActionContext,
-    logs: Array<{ text: string; type: 'player' | 'system' | 'heal' | 'damage' | 'enemy' }>
+    logs: ActionResult['logs']
   ): ActionResult {
     const healItem = this.item as HealItem;
-    const targetName = target?.name ?? context.performer.name;
+    const healTarget = target ?? context.performer;
 
-    const healed = target?.heal?.(healItem.healAmount) ?? 0;
-    logs.push({ text: `${targetName}のHPが ${healed} 回復した！`, type: 'heal' as const });
+    const healed = healTarget.heal(healItem.healAmount);
+    logs.push({ text: `${healTarget.name}のHPが ${healed} 回復した！`, type: 'heal' });
 
     return { success: true, logs };
   }
 
   private executeDamageItem(
-    target: { takeDamage?(amount: number): number; isDead?(): boolean; name: string } | null,
-    _context: ActionContext,
-    logs: Array<{ text: string; type: 'player' | 'system' | 'heal' | 'damage' | 'enemy' }>
+    target: Combatant | null,
+    logs: ActionResult['logs']
   ): ActionResult {
-    if (!target || !target.takeDamage) {
+    if (!target) {
       return {
         success: false,
-        logs: [{ text: 'ターゲットがいない！', type: 'system' as const }],
+        logs: [{ text: 'ターゲットがいない！', type: 'system' }],
       };
     }
 
     const damageItem = this.item as DamageItem;
     const damage = target.takeDamage(damageItem.damage);
 
-    logs.push({ text: `${target.name}に ${damage} のダメージ！`, type: 'damage' as const });
+    logs.push({ text: `${target.name}に ${damage} のダメージ！`, type: 'damage' });
 
-    if (target.isDead?.()) {
-      logs.push({ text: `${target.name}を倒した！`, type: 'system' as const });
+    if (target.isDead()) {
+      logs.push({ text: `${target.name}を倒した！`, type: 'system' });
     }
 
     return { success: true, logs };
   }
 
   private executeCureItem(
-    target: {
-      name: string;
-      hasStatusEffect?(type: StatusEffectType): boolean;
-      removeStatusEffect?(type: StatusEffectType): boolean;
-    } | null,
+    target: CombatantWithStatus | null,
     context: ActionContext,
-    logs: Array<{ text: string; type: 'player' | 'system' | 'heal' | 'damage' | 'enemy' }>
+    logs: ActionResult['logs']
   ): ActionResult {
     const cureItem = this.item as CureItem;
-    const targetName = target?.name ?? context.performer.name;
+    const cureTarget = (target ?? context.performer) as CombatantWithStatus;
 
-    if (target?.hasStatusEffect?.(cureItem.cureEffect)) {
-      target.removeStatusEffect?.(cureItem.cureEffect);
+    if (cureTarget.hasStatusEffect?.(cureItem.cureEffect)) {
+      cureTarget.removeStatusEffect?.(cureItem.cureEffect);
       const effectNames: Record<string, string> = {
         poison: '毒',
         influenza: 'インフルエンザ',
       };
       const effectName = effectNames[cureItem.cureEffect] || cureItem.cureEffect;
-      logs.push({ text: `${targetName}の${effectName}が治った！`, type: 'heal' as const });
+      logs.push({ text: `${cureTarget.name}の${effectName}が治った！`, type: 'heal' });
     } else {
-      logs.push({ text: 'しかし効果がなかった...', type: 'system' as const });
+      logs.push({ text: 'しかし効果がなかった...', type: 'system' });
     }
 
     return { success: true, logs };

@@ -268,27 +268,41 @@ src/models/
 
 | 指標 | Before | After |
 |-----|--------|-------|
-| Action クラス | 0 | 4 (Attack, Defend, Skill, Item) |
-| Action テスト | 0 | 53件 |
+| Action クラス | 0 | 5 (Attack, Defend, Skill, Item, DoubleAttack) |
+| Action テスト | 0 | 60件以上 |
 | Combatant 実装 | 0 | 2 (PartyMember, Enemy) |
-| BattleActionExecutor | 直接処理 | Action 委譲 |
+| BattleActionExecutor | 122行 | 削除 |
+| ActionContext.performer | プレーンオブジェクト | Combatant 型 |
 
 ### 作成したファイル
 
 | ファイル | 行数 | 説明 |
 |---------|------|------|
-| src/models/Combatant.ts | 38 | Combatant インターフェース |
+| src/models/Combatant.ts | 47 | Combatant/PlayerCombatant インターフェース |
 | src/models/actions/Action.ts | 79 | Action インターフェース |
-| src/models/actions/AttackAction.ts | 50 | 通常攻撃 |
-| src/models/actions/DefendAction.ts | 32 | 防御 |
+| src/models/actions/AttackAction.ts | 55 | 通常攻撃 |
+| src/models/actions/DefendAction.ts | 38 | 防御 |
 | src/models/actions/SkillAction.ts | 100 | スキル（攻撃/回復） |
 | src/models/actions/ItemAction.ts | 115 | アイテム使用 |
+| src/models/actions/DoubleAttackAction.ts | 60 | 連続攻撃（装備効果） |
+
+### 削除したファイル
+
+| ファイル | 理由 |
+|---------|------|
+| src/engine/BattleActionExecutor.ts | BattleEngine が Action を直接実行するようになったため |
+| src/engine/BattleActionExecutor.test.ts | 上記に伴い削除 |
+
+### 完了した拡張
+
+- ✅ BattleEngine を Action ベースに完全移行（BattleActionExecutor 削除）
+- ✅ 装備から行動を付与する機能（`equipment.grantedActions`）
+- ✅ 木の剣に連続攻撃を付与（プロトタイプ）
 
 ### 次のステップ（将来の拡張）
 
-- BattleEngine を Action ベースに完全移行（BattleActionExecutor 削除）
-- 装備から行動を付与する機能（`equipment.grantedActions`）
 - 敵のスキル行動対応
+- カウンター攻撃などの追加装備効果
 
 ## 承認
 

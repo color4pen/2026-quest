@@ -209,29 +209,6 @@ describe('ItemAction', () => {
     });
   });
 
-  describe('execute - アイテム消費', () => {
-    it('itemConsumer が渡されると consumeItem が呼ばれる', () => {
-      const action = new ItemAction(healPotion);
-      const context = createContext();
-      const target = createAllyTarget(70, 100);
-      const consumeMock = vi.fn().mockReturnValue(healPotion);
-      const itemConsumer = { consumeItem: consumeMock };
-
-      action.execute(target, context, itemConsumer);
-
-      expect(consumeMock).toHaveBeenCalledWith('potion');
-    });
-
-    it('アイテムがなくて consumeItem が null を返すと失敗', () => {
-      const action = new ItemAction(healPotion);
-      const context = createContext();
-      const target = createAllyTarget(70, 100);
-      const itemConsumer = { consumeItem: () => null };
-
-      const result = action.execute(target, context, itemConsumer);
-
-      expect(result.success).toBe(false);
-      expect(result.logs[0].text).toBe('アイテムがない！');
-    });
-  });
+  // 注意: アイテム消費は BattleEngine 側で行うため、
+  // ItemAction 自体は消費処理を行わない
 });

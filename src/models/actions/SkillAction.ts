@@ -1,4 +1,6 @@
 import type { Action, ActionContext, ActionResult, ActionTargetType } from './Action';
+import type { Combatant } from '../Combatant';
+import { isPlayerCombatant } from '../Combatant';
 import type { SkillDefinition } from '../../types/battle';
 import { CombatCalculator } from '../../engine/CombatCalculator';
 
@@ -25,28 +27,29 @@ export class SkillAction implements Action {
     return 'self'; // 回復スキルは自分対象
   }
 
-  canExecute(context: ActionContext, mpChecker?: { canUseSkill(skill: SkillDefinition): boolean }): boolean {
+  canExecute(context: ActionContext): boolean {
     if (!context.performer.isAlive()) {
       return false;
     }
-    // MPチェック（mpChecker が渡された場合）
-    if (mpChecker && !mpChecker.canUseSkill(this.skill)) {
-      return false;
+    // PlayerCombatant の場合、MPチェック
+    if (isPlayerCombatant(context.performer)) {
+      return context.performer.canUseSkill(this.skill);
     }
     return true;
   }
 
   execute(
-    target: { takeDamage(amount: number): number; heal(amount: number): number; isDead(): boolean; name: string } | null,
-    context: ActionContext,
-    mpUser?: { useMp(amount: number): boolean }
+    target: Combatant | null,
+    context: ActionContext
   ): ActionResult {
-    // MP消費
-    if (mpUser && !mpUser.useMp(this.skill.mpCost)) {
-      return {
-        success: false,
-        logs: [{ text: 'MPが足りない！', type: 'system' as const }],
-      };
+    // PlayerCombatant の場合、MP消費
+    if (isPlayerCombatant(context.performer)) {
+      if (!context.performer.useMp(this.skill.mpCost)) {
+        return {
+          success: false,
+          logs: [{ text: 'MPが足りない！', type: 'system' as const }],
+        };
+      }
     }
 
     if (this.skill.type === 'attack') {
@@ -57,7 +60,7 @@ export class SkillAction implements Action {
   }
 
   private executeAttackSkill(
-    target: { takeDamage(amount: number): number; isDead(): boolean; name: string } | null,
+    target: Combatant | null,
     context: ActionContext
   ): ActionResult {
     if (!target) {
@@ -92,19 +95,19 @@ export class SkillAction implements Action {
   }
 
   private executeHealSkill(
-    target: { heal(amount: number): number; name: string } | null,
+    target: Combatant | null,
     context: ActionContext
   ): ActionResult {
-    // 回復スキルはターゲットがない場合、自分を回復
-    const targetName = target?.name ?? context.performer.name;
+    // 回復対象を決定（ターゲットがいなければ自分）
+    const healTarget = target ?? context.performer;
 
-    const healed = target?.heal(this.skill.power) ?? 0;
+    const healed = healTarget.heal(this.skill.power);
 
     return {
       success: true,
       logs: [
         { text: `${context.performer.name}の${this.skill.name}！`, type: 'player' as const },
-        { text: `${targetName}のHPが ${healed} 回復した！`, type: 'heal' as const },
+        { text: `${healTarget.name}のHPが ${healed} 回復した！`, type: 'heal' as const },
       ],
     };
   }

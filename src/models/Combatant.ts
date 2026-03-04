@@ -36,6 +36,8 @@ export interface PlayerCombatant extends Combatant {
   readonly maxMp: number;
   useMp(amount: number): boolean;
   canUseSkill(skill: { mpCost: number }): boolean;
+  defend(): void;
+  resetDefend(): void;
 }
 
 /**

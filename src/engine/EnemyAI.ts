@@ -1,6 +1,6 @@
 import { PartyMember } from '../models';
 import { Enemy } from '../models/Enemy';
-import { ActionLog } from './BattleActionExecutor';
+import type { ActionLog } from '../models/actions';
 
 export interface EnemyTurnResult {
   logs: ActionLog[];

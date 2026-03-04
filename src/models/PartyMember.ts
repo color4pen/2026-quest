@@ -413,13 +413,13 @@ export class PartyMember implements Combatant {
       actions.push(new SkillAction(skill));
     }
 
-    // TODO: 装備から付与された行動を追加
-    // const equipment = this.equipment.getAll();
-    // for (const equip of Object.values(equipment)) {
-    //   if (equip?.grantedActions) {
-    //     actions.push(...equip.grantedActions);
-    //   }
-    // }
+    // 装備から付与された行動を追加
+    const equipment = this.equipment.getAll();
+    for (const equip of Object.values(equipment)) {
+      if (equip?.grantedActions) {
+        actions.push(...equip.grantedActions);
+      }
+    }
 
     return actions;
   }

@@ -6,3 +6,4 @@ export { AttackAction } from './AttackAction';
 export { DefendAction } from './DefendAction';
 export { SkillAction } from './SkillAction';
 export { ItemAction } from './ItemAction';
+export { DoubleAttackAction } from './DoubleAttackAction';
