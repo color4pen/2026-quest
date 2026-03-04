@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { BattleState, BattleCommand, SkillDefinition, EnemyBattleState, PartyState, InventoryItemState } from '../types/game';
 import { Modal, Button, ListButton, MemberCardList } from './ui';
+import { assetPath } from '../utils/assetPath';
 
 interface BattleModalProps {
   battle: BattleState;
@@ -201,7 +202,7 @@ function EnemyCard({ enemy, isSelectable, isCurrentTurn, onSelect }: EnemyCardPr
       <div className="battle-enemy-sprite">
         {enemy.image ? (
           <img
-            src={enemy.image}
+            src={assetPath(enemy.image)}
             alt={enemy.name}
             className={`battle-enemy-image ${enemy.isDead ? 'dead' : ''}`}
           />

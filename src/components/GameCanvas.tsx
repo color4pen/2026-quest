@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState } from 'react';
 import { TileType, GrassDecoration, TILE_SIZE, CameraState } from '../types/game';
 import { GameMapState } from '../models';
 import { GameObject } from './game';
+import { assetPath } from '../utils/assetPath';
 
 function useImage(src: string): HTMLImageElement | null {
   const [loaded, setLoaded] = useState(false);
@@ -38,8 +39,8 @@ interface GameCanvasProps {
  */
 export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const villageImage = useImage('/assets/images/tiles/village.jpg');
-  const caveImage = useImage('/assets/images/tiles/cave.jpg');
+  const villageImage = useImage(assetPath('/assets/images/tiles/village.jpg'));
+  const caveImage = useImage(assetPath('/assets/images/tiles/cave.jpg'));
 
   const mapHeight = map.tiles.length;
   const mapWidth = map.tiles[0]?.length ?? 20;

@@ -1,5 +1,6 @@
 import { StatusBar } from './StatusBar';
 import { CLASS_NAMES } from '../../types/game';
+import { assetPath } from '../../utils/assetPath';
 import './MemberCard.css';
 
 interface StatusEffectInfo {
@@ -73,7 +74,7 @@ export function MemberCard({
         <div className="member-card-layout">
           <div className="member-card-avatar">
             {member.image ? (
-              <img src={member.image} alt={member.name} className="member-card-image" />
+              <img src={assetPath(member.image)} alt={member.name} className="member-card-image" />
             ) : member.class ? (
               <span
                 className={`member-card-icon ${member.class}`}
