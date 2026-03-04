@@ -5,22 +5,35 @@
 
 import { Item, ItemType, ItemUseContext, ItemUseResult } from './Item';
 import type { EquipmentSlot, EquipmentStats } from '../../types/party';
+import type { Action } from '../actions/Action';
+
+/**
+ * 装備品の追加オプション
+ */
+export interface EquipmentOptions {
+  /** 装備時に付与される行動 */
+  grantedActions?: Action[];
+}
 
 export class EquipmentItem extends Item {
   public readonly type: ItemType = 'equipment' as ItemType;
   public readonly slot: EquipmentSlot;
   public readonly stats: EquipmentStats;
+  /** 装備時に付与される行動 */
+  public readonly grantedActions: Action[];
 
   constructor(
     id: string,
     name: string,
     description: string,
     slot: EquipmentSlot,
-    stats: EquipmentStats
+    stats: EquipmentStats,
+    options?: EquipmentOptions
   ) {
     super(id, name, description);
     this.slot = slot;
     this.stats = stats;
+    this.grantedActions = options?.grantedActions ?? [];
   }
 
   /**

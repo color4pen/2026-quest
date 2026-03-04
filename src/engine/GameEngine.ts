@@ -172,7 +172,7 @@ export class GameEngine {
 
   // ==================== 初期化 ====================
 
-  public initialize(): void {
+  private initialize(): void {
     this.player.reset();
     this.messageManager.clear();
     this.transitionTo({ type: 'exploring' });
@@ -181,6 +181,10 @@ export class GameEngine {
 
     this.party.reset();
     this.party.addMember(INITIAL_PARTY_MEMBER);
+
+    // 初期装備を設定
+    this.party.equipItem('engineer', 'wooden_sword');
+    this.party.equipItem('engineer', 'leather_armor');
 
     const initialMember = this.party.getMembers()[0];
     if (initialMember) {
@@ -198,7 +202,7 @@ export class GameEngine {
 
   // ==================== マップ ====================
 
-  public loadMap(mapId: string, playerX?: number, playerY?: number, skipCache: boolean = false): void {
+  private loadMap(mapId: string, playerX?: number, playerY?: number, skipCache: boolean = false): void {
     const leaderLevel = this.party.getLeader()?.getState().level ?? 1;
     const result = this.mapManager.loadMap(mapId, playerX, playerY, {
       skipCache,
@@ -316,27 +320,10 @@ export class GameEngine {
     return this.partyController.recruitMember(definition);
   }
 
-  public getParty(): Party {
-    return this.party;
-  }
-
   // ==================== ゲーム状態 ====================
 
   public getCurrentMapId(): string {
     return this.mapManager.getCurrentMapId();
-  }
-
-  public getGameState(key: StateKey): number {
-    return this.gameStateManager.get(key);
-  }
-
-  public setGameState(key: StateKey, value: number): void {
-    this.gameStateManager.set(key, value);
-    this.markDirty();
-  }
-
-  public isGameStateSet(key: StateKey): boolean {
-    return this.gameStateManager.isSet(key);
   }
 
   // ==================== セーブ・ロード ====================

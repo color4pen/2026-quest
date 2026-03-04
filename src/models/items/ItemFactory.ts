@@ -4,7 +4,12 @@ import { CureItem } from './CureItem';
 import { DamageItem } from './DamageItem';
 import { ValuableItem } from './ValuableItem';
 import { EquipmentItem } from './EquipmentItem';
+import { DoubleAttackAction } from '../actions/DoubleAttackAction';
+import type { Action } from '../actions/Action';
 import type { EquipmentSlot, EquipmentStats } from '../../types/party';
+
+/** 装備品が付与するアクションの種類 */
+type GrantedActionType = 'double_attack';
 
 /**
  * アイテム定義（ファクトリ用）
@@ -21,6 +26,8 @@ export interface ItemDefinitionData {
   // 装備品用
   slot?: EquipmentSlot;
   stats?: EquipmentStats;
+  /** 装備時に付与されるアクション */
+  grantedActions?: GrantedActionType[];
 }
 
 /**
@@ -255,11 +262,30 @@ export class ItemFactory {
           def.name,
           def.description,
           def.slot,
-          def.stats
+          def.stats,
+          {
+            grantedActions: this.createGrantedActions(def.grantedActions),
+          }
         );
       default:
         throw new Error(`Unknown item type: ${def.type}`);
     }
+  }
+
+  /**
+   * 付与アクションのタイプからアクションインスタンスを生成
+   */
+  private static createGrantedActions(actionTypes?: GrantedActionType[]): Action[] {
+    if (!actionTypes) return [];
+
+    return actionTypes.map(type => {
+      switch (type) {
+        case 'double_attack':
+          return new DoubleAttackAction();
+        default:
+          throw new Error(`Unknown granted action type: ${type}`);
+      }
+    });
   }
 
   /**

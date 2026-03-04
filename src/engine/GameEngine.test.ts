@@ -106,17 +106,16 @@ describe('GameEngine', () => {
   });
 
   describe('フィールドアイテム使用', () => {
-    it('HPが減ったリーダーに薬草を使うと回復する', () => {
+    it('HP満タンのメンバーへの薬草使用は失敗する', () => {
       const engine = createEngine();
-      const party = engine.getParty();
-      const leader = party.getLeader()!;
-      leader.takeDamageRaw(30);
-      const hpBefore = leader.hp;
+      const stateBefore = engine.getState();
+      const leader = stateBefore.party.members[0];
 
-      const result = engine.useFieldItem('potion');
+      const result = engine.useFieldItem('potion', leader.id);
 
-      expect(result.success).toBe(true);
-      expect(leader.hp).toBeGreaterThan(hpBefore);
+      // HP満タンなので使用不可
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('満タン');
     });
 
     it('存在しないアイテムの使用は失敗する', () => {
@@ -128,21 +127,6 @@ describe('GameEngine', () => {
     });
   });
 
-  describe('ゲーム状態（フラグ）', () => {
-    it('ゲーム状態を set/get できる', () => {
-      const engine = createEngine();
-
-      engine.setGameState('quest_forest' as any, 1);
-
-      expect(engine.getGameState('quest_forest' as any)).toBe(1);
-      expect(engine.isGameStateSet('quest_forest' as any)).toBe(true);
-    });
-
-    it('未設定のフラグは 0 を返す', () => {
-      const engine = createEngine();
-
-      expect(engine.getGameState('quest_forest' as any)).toBe(0);
-      expect(engine.isGameStateSet('quest_forest' as any)).toBe(false);
-    });
-  });
+  // ゲーム状態（フラグ）のテストは GameStateManager.test.ts で実施
+  // GameEngine からは private メソッドとなったため直接テストしない
 });

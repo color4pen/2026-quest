@@ -3,23 +3,28 @@ import {
   PartyMemberClass,
   PartyMemberDefinition,
   PartyMemberState,
-  DEFAULT_LEVEL_UP_BONUS,
   EquipmentSlot,
-  EquipmentSlotState,
 } from '../types/party';
-import type { StatusEffect, StatusEffectType, StatusEffectInfo } from '../types/statusEffect';
-import { StatusEffectFactory } from './statusEffects';
+import type { StatusEffectType, StatusEffectInfo } from '../types/statusEffect';
 import { EquipmentItem } from './items/EquipmentItem';
 import { CombatCalculator } from '../engine/CombatCalculator';
 import { HitPoints } from './values/HitPoints';
 import { ManaPoints } from './values/ManaPoints';
-import { EquipmentStatBlock } from './values/EquipmentStatBlock';
+import { ExperienceManager } from './components/ExperienceManager';
+import { StatusEffectManager } from './components/StatusEffectManager';
+import { EquipmentManager } from './components/EquipmentManager';
+import type { Combatant } from './Combatant';
+import type { Action } from './actions/Action';
+import { AttackAction } from './actions/AttackAction';
+import { DefendAction } from './actions/DefendAction';
+import { SkillAction } from './actions/SkillAction';
 
 /**
  * パーティーメンバークラス
  * 個別のキャラクターを表現（インベントリ・お金はPartyで共有管理）
+ * Combatant インターフェースを実装し、戦闘時の行動を自己管理
  */
-export class PartyMember {
+export class PartyMember implements Combatant {
   public readonly id: string;
   public readonly name: string;
   public readonly memberClass: PartyMemberClass;
@@ -28,11 +33,11 @@ export class PartyMember {
   // ステータス（値オブジェクトで管理）
   private _hp: HitPoints;
   private _mp: ManaPoints;
-  private _level: number;
-  private _xp: number;
-  private _xpToNext: number;
   private _attack: number;
   private _skills: SkillDefinition[];
+
+  // 経験値・レベル管理
+  private readonly experience: ExperienceManager;
 
   // バトル用フラグ
   private _isDefending: boolean = false;
@@ -40,22 +45,11 @@ export class PartyMember {
   // 基本防御力
   private _baseDefense: number = 0;
 
-  // 装備スロット
-  private equipment: {
-    weapon: EquipmentItem | null;
-    armor: EquipmentItem | null;
-    accessory: EquipmentItem | null;
-  } = {
-    weapon: null,
-    armor: null,
-    accessory: null,
-  };
+  // 装備管理
+  private readonly equipment: EquipmentManager = new EquipmentManager();
 
-  // 状態異常
-  private statusEffects: StatusEffect[] = [];
-
-  // レベルアップボーナス
-  private levelUpBonus: { hp: number; mp: number; attack: number };
+  // 状態異常管理
+  private readonly statusEffects: StatusEffectManager = new StatusEffectManager();
 
   constructor(definition: PartyMemberDefinition) {
     this.id = definition.id;
@@ -68,20 +62,11 @@ export class PartyMember {
     this._mp = ManaPoints.create(definition.baseStats.maxMp);
     this._attack = definition.baseStats.attack;
 
-    // レベル・経験値
-    this._level = 1;
-    this._xp = 0;
-    this._xpToNext = 100;
-
     // スキル
     this._skills = [...definition.skills];
 
-    // レベルアップボーナス
-    this.levelUpBonus = definition.levelUpBonus ?? {
-      hp: DEFAULT_LEVEL_UP_BONUS.hp,
-      mp: DEFAULT_LEVEL_UP_BONUS.mp,
-      attack: DEFAULT_LEVEL_UP_BONUS.attack,
-    };
+    // 経験値・レベル管理
+    this.experience = new ExperienceManager(definition.levelUpBonus);
   }
 
   // ==================== getter ====================
@@ -90,10 +75,11 @@ export class PartyMember {
   get maxHp(): number { return this._hp.max; }
   get mp(): number { return this._mp.current; }
   get maxMp(): number { return this._mp.max; }
-  get level(): number { return this._level; }
-  get xp(): number { return this._xp; }
-  get xpToNext(): number { return this._xpToNext; }
+  get level(): number { return this.experience.level; }
+  get xp(): number { return this.experience.xp; }
+  get xpToNext(): number { return this.experience.xpToNext; }
   get attack(): number { return this._attack; }
+  get defense(): number { return this.getEffectiveDefense(); }
   get isDefending(): boolean { return this._isDefending; }
   get baseDefense(): number { return this._baseDefense; }
   get skills(): SkillDefinition[] { return [...this._skills]; }
@@ -200,28 +186,22 @@ export class PartyMember {
    * @returns レベルアップしたかどうか
    */
   gainXp(amount: number): boolean {
-    this._xp += amount;
-
-    if (this._xp >= this._xpToNext) {
-      this.levelUp();
+    const result = this.experience.gainXp(amount);
+    if (result) {
+      this.applyLevelUp(result.hpBonus, result.mpBonus, result.attackBonus);
       return true;
     }
-
     return false;
   }
 
   /**
-   * レベルアップ処理
+   * レベルアップ時のステータス適用
    */
-  private levelUp(): void {
-    this._level++;
-    this._xp -= this._xpToNext;
-    this._xpToNext = Math.floor(this._xpToNext * DEFAULT_LEVEL_UP_BONUS.xpMultiplier);
-
+  private applyLevelUp(hpBonus: number, mpBonus: number, attackBonus: number): void {
     // ステータス上昇 + 全回復
-    this._hp = HitPoints.create(this._hp.max + this.levelUpBonus.hp);
-    this._mp = ManaPoints.create(this._mp.max + this.levelUpBonus.mp);
-    this._attack += this.levelUpBonus.attack;
+    this._hp = HitPoints.create(this._hp.max + hpBonus);
+    this._mp = ManaPoints.create(this._mp.max + mpBonus);
+    this._attack += attackBonus;
   }
 
   /**
@@ -266,57 +246,42 @@ export class PartyMember {
     if (!this.isAlive()) {
       return false;
     }
-
-    if (this.hasStatusEffect(type)) {
-      return false;
-    }
-
-    const effect = StatusEffectFactory.create(type, duration);
-    this.statusEffects.push(effect);
-    return true;
+    return this.statusEffects.add(type, duration);
   }
 
   /**
    * 特定の種類の状態異常を解除
    */
   removeStatusEffect(type: StatusEffectType): boolean {
-    const initialLength = this.statusEffects.length;
-    this.statusEffects = this.statusEffects.filter(e => e.type !== type);
-    return this.statusEffects.length < initialLength;
+    return this.statusEffects.remove(type);
   }
 
   /**
    * 全ての状態異常を解除
    */
   clearAllStatusEffects(): void {
-    this.statusEffects = [];
+    this.statusEffects.clear();
   }
 
   /**
    * 特定の状態異常を持っているか
    */
   hasStatusEffect(type: StatusEffectType): boolean {
-    return this.statusEffects.some(e => e.type === type);
+    return this.statusEffects.has(type);
   }
 
   /**
    * 全ての状態異常を取得
    */
-  getStatusEffects(): readonly StatusEffect[] {
-    return this.statusEffects;
+  getStatusEffects() {
+    return this.statusEffects.getAll();
   }
 
   /**
    * 状態異常情報を取得（UI表示用）
    */
   getStatusEffectInfos(): StatusEffectInfo[] {
-    return this.statusEffects.map(e => ({
-      type: e.type,
-      name: e.name,
-      shortName: e.shortName,
-      color: e.color,
-      remainingTurns: e.remainingTurns,
-    }));
+    return this.statusEffects.getInfos();
   }
 
   /**
@@ -324,24 +289,7 @@ export class PartyMember {
    * @returns 処理結果の配列（ログ表示用）
    */
   processStatusEffectsTurnEnd(): { message: string; damage?: number; targetDied?: boolean }[] {
-    const results: { message: string; damage?: number; targetDied?: boolean }[] = [];
-
-    for (const effect of this.statusEffects) {
-      const result = effect.onTurnEnd(this);
-      if (result) {
-        results.push({
-          message: result.message,
-          damage: result.damage,
-          targetDied: this.isDead(),
-        });
-      }
-      effect.tick();
-    }
-
-    // 解除すべき状態異常を削除
-    this.statusEffects = this.statusEffects.filter(e => !e.shouldRemove());
-
-    return results;
+    return this.statusEffects.processTurnEnd(this);
   }
 
   // ==================== 装備システム ====================
@@ -351,10 +299,7 @@ export class PartyMember {
    * @returns 以前装備していたアイテム（なければnull）
    */
   equip(item: EquipmentItem): EquipmentItem | null {
-    const slot = item.slot;
-    const previous = this.equipment[slot];
-    this.equipment[slot] = item;
-    return previous;
+    return this.equipment.equip(item);
   }
 
   /**
@@ -362,73 +307,49 @@ export class PartyMember {
    * @returns 外した装備品（なければnull）
    */
   unequip(slot: EquipmentSlot): EquipmentItem | null {
-    const item = this.equipment[slot];
-    this.equipment[slot] = null;
-    return item;
+    return this.equipment.unequip(slot);
   }
 
   /**
    * 指定スロットの装備を取得
    */
   getEquipmentAt(slot: EquipmentSlot): EquipmentItem | null {
-    return this.equipment[slot];
+    return this.equipment.getAt(slot);
   }
 
   /**
    * 全装備を取得
    */
-  getEquipment(): { weapon: EquipmentItem | null; armor: EquipmentItem | null; accessory: EquipmentItem | null } {
-    return { ...this.equipment };
-  }
-
-  /**
-   * 全装備のステータスボーナスを合算
-   */
-  private getEquipmentBonuses(): EquipmentStatBlock {
-    return EquipmentStatBlock.sum(
-      this.equipment.weapon ? EquipmentStatBlock.fromEquipmentStats(this.equipment.weapon.stats) : null,
-      this.equipment.armor ? EquipmentStatBlock.fromEquipmentStats(this.equipment.armor.stats) : null,
-      this.equipment.accessory ? EquipmentStatBlock.fromEquipmentStats(this.equipment.accessory.stats) : null,
-    );
+  getEquipment() {
+    return this.equipment.getAll();
   }
 
   /**
    * 装備込みの攻撃力を取得
    */
   getEffectiveAttack(): number {
-    return this._attack + this.getEquipmentBonuses().attack;
+    return this._attack + this.equipment.getBonuses().attack;
   }
 
   /**
    * 装備込みの防御力を取得
    */
   getEffectiveDefense(): number {
-    return this._baseDefense + this.getEquipmentBonuses().defense;
+    return this._baseDefense + this.equipment.getBonuses().defense;
   }
 
   /**
    * 装備込みの最大HPを取得
    */
   getEffectiveMaxHp(): number {
-    return this._hp.max + this.getEquipmentBonuses().maxHp;
+    return this._hp.max + this.equipment.getBonuses().maxHp;
   }
 
   /**
    * 装備込みの最大MPを取得
    */
   getEffectiveMaxMp(): number {
-    return this._mp.max + this.getEquipmentBonuses().maxMp;
-  }
-
-  /**
-   * 装備状態を取得（React用）
-   */
-  getEquipmentState(): EquipmentSlotState {
-    return {
-      weapon: this.equipment.weapon?.getEquipmentInfo() ?? null,
-      armor: this.equipment.armor?.getEquipmentInfo() ?? null,
-      accessory: this.equipment.accessory?.getEquipmentInfo() ?? null,
-    };
+    return this._mp.max + this.equipment.getBonuses().maxMp;
   }
 
   // ==================== 後方互換性のためのヘルパー ====================
@@ -470,11 +391,37 @@ export class PartyMember {
   ): void {
     this._hp = HitPoints.of(hp, baseMaxHp);
     this._mp = ManaPoints.of(mp, baseMaxMp);
-    this._level = level;
-    this._xp = xp;
-    this._xpToNext = xpToNext;
+    this.experience.restoreState(level, xp, xpToNext);
     this._attack = baseAttack;
     this._baseDefense = baseDefense;
+  }
+
+  // ==================== Rich Domain Model ====================
+
+  /**
+   * このキャラクターが実行可能な行動一覧を取得
+   * 基本行動（攻撃、防御）+ スキル + 装備から付与された行動
+   */
+  getAvailableActions(): Action[] {
+    const actions: Action[] = [
+      new AttackAction(),
+      new DefendAction(),
+    ];
+
+    // スキルから行動追加
+    for (const skill of this._skills) {
+      actions.push(new SkillAction(skill));
+    }
+
+    // 装備から付与された行動を追加
+    const equipment = this.equipment.getAll();
+    for (const equip of Object.values(equipment)) {
+      if (equip?.grantedActions) {
+        actions.push(...equip.grantedActions);
+      }
+    }
+
+    return actions;
   }
 
   /**
@@ -490,9 +437,9 @@ export class PartyMember {
       maxHp: this.getEffectiveMaxHp(),
       mp: this._mp.current,
       maxMp: this.getEffectiveMaxMp(),
-      level: this.level,
-      xp: this.xp,
-      xpToNext: this.xpToNext,
+      level: this.experience.level,
+      xp: this.experience.xp,
+      xpToNext: this.experience.xpToNext,
       attack: this.getEffectiveAttack(),
       defense: this.getEffectiveDefense(),
       skills: [...this._skills],
@@ -500,7 +447,7 @@ export class PartyMember {
       isDefending: this._isDefending,
       isPoisoned: this.isPoisoned,
       statusEffects: this.getStatusEffectInfos(),
-      equipment: this.getEquipmentState(),
+      equipment: this.equipment.getState(),
     };
   }
 }

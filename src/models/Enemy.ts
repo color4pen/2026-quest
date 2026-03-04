@@ -15,6 +15,9 @@ import {
 } from '../components/game';
 import { CombatCalculator } from '../engine/CombatCalculator';
 import { HitPoints } from './values/HitPoints';
+import type { Combatant } from './Combatant';
+import type { Action } from './actions/Action';
+import { AttackAction } from './actions/AttackAction';
 
 /**
  * 敵状態（React用）
@@ -30,10 +33,12 @@ export interface EnemyState extends GameObjectState {
 
 /**
  * 敵クラス
- * GameObjectを継承し、Interactableを実装
+ * GameObjectを継承し、Interactable、Combatant を実装
  */
-export class Enemy extends GameObject implements Interactable {
+export class Enemy extends GameObject implements Interactable, Combatant {
   private _hp: HitPoints;
+  private static _idCounter = 0;
+  public readonly id: string;
   public attack: number;
   public xpReward: number;
   public goldReward: number;
@@ -43,6 +48,9 @@ export class Enemy extends GameObject implements Interactable {
 
   constructor(x: number, y: number, playerLevel: number, battleConfig?: EnemyBattleConfig) {
     super(x, y);
+
+    // 一意なIDを生成
+    this.id = `enemy_${Enemy._idCounter++}`;
 
     // Rendererを設定（自身の描画方法を所有）
     this.renderer = new EnemyRenderer(this.transform);
@@ -65,10 +73,12 @@ export class Enemy extends GameObject implements Interactable {
     this.goldReward = Math.floor(baseGold * this.battleConfig.goldMultiplier);
   }
 
-  // ==================== HP getter（後方互換性） ====================
+  // ==================== Combatant プロパティ ====================
 
   get hp(): number { return this._hp.current; }
   get maxHp(): number { return this._hp.max; }
+  get defense(): number { return 0; } // 敵の防御力は0（将来拡張可能）
+  get isDefending(): boolean { return false; } // 敵は防御しない
 
   /**
    * 敵の名前を取得（バトル設定から）
@@ -118,9 +128,36 @@ export class Enemy extends GameObject implements Interactable {
 
   /**
    * ダメージを受ける
+   * @returns 実際に受けたダメージ量
    */
-  takeDamage(amount: number): void {
+  takeDamage(amount: number): number {
+    const before = this._hp.current;
     this._hp = this._hp.damage(amount);
+    return before - this._hp.current;
+  }
+
+  /**
+   * 防御計算なしでダメージを受ける（状態異常用）
+   */
+  takeDamageRaw(amount: number): void {
+    this._hp = this._hp.damage(amount);
+  }
+
+  /**
+   * HPを回復
+   * @returns 実際に回復した量
+   */
+  heal(amount: number): number {
+    const before = this._hp.current;
+    this._hp = this._hp.heal(amount);
+    return this._hp.current - before;
+  }
+
+  /**
+   * 生存判定
+   */
+  isAlive(): boolean {
+    return this._hp.isAlive;
   }
 
   /**
@@ -128,6 +165,17 @@ export class Enemy extends GameObject implements Interactable {
    */
   isDead(): boolean {
     return this._hp.isDead;
+  }
+
+  // ==================== Rich Domain Model ====================
+
+  /**
+   * この敵が実行可能な行動一覧を取得
+   */
+  getAvailableActions(): Action[] {
+    // 基本は攻撃のみ
+    // TODO: スキルを持つ敵の場合はスキルを追加
+    return [new AttackAction()];
   }
 
   // ==================== 状態管理 ====================
