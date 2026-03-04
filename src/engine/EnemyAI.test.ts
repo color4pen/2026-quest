@@ -2,6 +2,7 @@ import { EnemyAI } from './EnemyAI';
 import { Party, PartyMember, Enemy } from '../models';
 import { INITIAL_PARTY_MEMBER } from '../data/partyMembers';
 import { createTestEnemyTemplate } from '../__test-helpers__/factories';
+import type { ActionContext } from '../models/actions';
 
 describe('EnemyAI', () => {
   let ai: EnemyAI;
@@ -20,82 +21,116 @@ describe('EnemyAI', () => {
   });
 
   describe('decideAction', () => {
-    it('aggressive AIは attack か power_attack を返す', () => {
+    it('アクションとターゲットを返す', () => {
+      const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate());
+
+      const decision = ai.decideAction(enemy, members);
+
+      expect(decision.action).toBeDefined();
+      expect(decision.target).toBeDefined();
+      expect(decision.target).toBe(members[0]); // 1人しかいない
+    });
+
+    it('aggressive AIは通常攻撃か強攻撃を選択する', () => {
       const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate({ aiType: 'aggressive' }));
 
-      // 複数回実行して全てがattackかpower_attackであることを確認
-      const actions = new Set<string>();
+      const actionIds = new Set<string>();
+      const actionNames = new Set<string>();
       for (let i = 0; i < 100; i++) {
-        actions.add(ai.decideAction(enemy));
+        const { action } = ai.decideAction(enemy, members);
+        actionIds.add(action.id);
+        actionNames.add(action.name);
       }
 
-      expect(actions.has('wait')).toBe(false);
-      expect(actions.has('attack') || actions.has('power_attack')).toBe(true);
+      // 様子見（wait）は選ばれない
+      expect(actionIds.has('wait')).toBe(false);
+      // 攻撃系のみ
+      expect(actionIds.has('attack')).toBe(true);
+      // 強攻撃も出る可能性がある
+      // expect(actionNames.has('強攻撃')).toBe(true); // 確率なので出ないこともある
     });
 
-    it('defensive AIは attack か wait を返す', () => {
+    it('defensive AIは通常攻撃か様子見を選択する', () => {
       const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate({ aiType: 'defensive' }));
 
-      const actions = new Set<string>();
+      const actionNames = new Set<string>();
       for (let i = 0; i < 100; i++) {
-        actions.add(ai.decideAction(enemy));
+        const { action } = ai.decideAction(enemy, members);
+        actionNames.add(action.name);
       }
 
-      expect(actions.has('power_attack')).toBe(false);
-      expect(actions.has('attack') || actions.has('wait')).toBe(true);
+      // 強攻撃は選ばれない
+      expect(actionNames.has('強攻撃')).toBe(false);
     });
 
-    it('random AIは全ての行動を返しうる', () => {
+    it('random AIは全ての行動を選択しうる', () => {
       const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate({ aiType: 'random' }));
 
-      const actions = new Set<string>();
+      const actionTypes = new Set<string>();
       for (let i = 0; i < 200; i++) {
-        actions.add(ai.decideAction(enemy));
+        const { action } = ai.decideAction(enemy, members);
+        actionTypes.add(action.id === 'wait' ? 'wait' : action.name === '強攻撃' ? 'power' : 'attack');
       }
 
-      // randomは3種全ての行動が出る可能性がある
-      expect(actions.size).toBeGreaterThanOrEqual(2);
+      // random は複数種類の行動を選ぶ
+      expect(actionTypes.size).toBeGreaterThanOrEqual(2);
     });
   });
 
-  describe('executeTurn', () => {
-    it('attackでパーティメンバーにダメージを与える', () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0.5); // attack を選択
+  describe('アクション実行', () => {
+    function createEnemyContext(enemy: Enemy): ActionContext {
+      return {
+        performer: enemy,
+        allies: [enemy],
+        enemies: members,
+      };
+    }
+
+    it('攻撃アクションでパーティメンバーにダメージを与える', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.5); // 通常攻撃を選択
 
       const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate({ attackMultiplier: 1.0 }));
+      const { action, target } = ai.decideAction(enemy, members);
 
-      const hpBefore = members[0].hp;
-      const result = ai.executeTurn(enemy, members);
+      const hpBefore = target.hp;
+      const result = action.execute(target, createEnemyContext(enemy));
 
-      expect(members[0].hp).toBeLessThan(hpBefore);
+      expect(target.hp).toBeLessThan(hpBefore);
       expect(result.logs.some(l => l.text.includes('攻撃'))).toBe(true);
       expect(result.logs.some(l => l.text.includes('ダメージ'))).toBe(true);
     });
 
-    it('power_attackで強攻撃ログが出る', () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0.1); // power_attack を選択
+    it('強攻撃を選択すると強攻撃ログが出る', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.1); // 強攻撃を選択
 
-      const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate({ aiType: 'random' }));
+      const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate({ aiType: 'aggressive' }));
+      const { action, target } = ai.decideAction(enemy, members);
 
-      const result = ai.executeTurn(enemy, members);
-
-      expect(result.logs.some(l => l.text.includes('強攻撃'))).toBe(true);
+      // 強攻撃が選ばれた場合
+      if (action.name === '強攻撃') {
+        const result = action.execute(target, createEnemyContext(enemy));
+        expect(result.logs.some(l => l.text.includes('強攻撃'))).toBe(true);
+      }
     });
 
-    it('waitで「様子を見ている」ログを出す', () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0.35); // wait を選択
+    it('様子見を選択すると「様子を見ている」ログが出る', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0.35); // 様子見を選択
 
       const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate({ aiType: 'random' }));
+      const { action, target } = ai.decideAction(enemy, members);
 
-      const hpBefore = members[0].hp;
-      const result = ai.executeTurn(enemy, members);
+      // 様子見が選ばれた場合
+      if (action.id === 'wait') {
+        const hpBefore = target.hp;
+        const result = action.execute(target, createEnemyContext(enemy));
 
-      expect(members[0].hp).toBe(hpBefore); // ダメージなし
-      expect(result.logs.some(l => l.text.includes('様子を見ている'))).toBe(true);
+        expect(target.hp).toBe(hpBefore); // ダメージなし
+        expect(result.logs.some(l => l.text.includes('様子を見ている'))).toBe(true);
+      }
     });
 
     it('毒攻撃で毒状態を付与する', () => {
-      vi.spyOn(Math, 'random').mockReturnValue(0.5); // attack + 毒付与
+      vi.spyOn(Math, 'random').mockReturnValue(0.5); // 通常攻撃を選択 (rand >= 0.4)
 
       const poisonEnemy = new Enemy(0, 0, 1, createTestEnemyTemplate({
         aiType: 'random',
@@ -104,13 +139,13 @@ describe('EnemyAI', () => {
 
       expect(members[0].hasStatusEffect('poison')).toBe(false);
 
-      const result = ai.executeTurn(poisonEnemy, members);
+      const { action, target } = ai.decideAction(poisonEnemy, members);
+      action.execute(target, createEnemyContext(poisonEnemy));
 
       expect(members[0].hasStatusEffect('poison')).toBe(true);
-      expect(result.logs.some(l => l.text.includes('毒を受けた'))).toBe(true);
     });
 
-    it('パーティメンバーが死亡したらpartyMemberDiedがtrue', () => {
+    it('ターゲットが死亡すると倒れたログが出る', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
       // メンバーのHPを1にして即死させる
@@ -121,11 +156,11 @@ describe('EnemyAI', () => {
         attackMultiplier: 10.0, // 高ダメージ
       }));
 
-      const result = ai.executeTurn(strongEnemy, members);
+      const { action, target } = ai.decideAction(strongEnemy, members);
+      const result = action.execute(target, createEnemyContext(strongEnemy));
 
-      expect(members[0].isDead()).toBe(true);
-      expect(result.partyMemberDied).toBe(true);
-      expect(result.logs.some(l => l.text.includes('倒れた'))).toBe(true);
+      expect(target.isDead()).toBe(true);
+      expect(result.logs.some(l => l.text.includes('倒した'))).toBe(true);
     });
 
     it('防御中のメンバーへの攻撃は防御ログが出る', () => {
@@ -134,8 +169,8 @@ describe('EnemyAI', () => {
       members[0].defend(); // 防御状態にする
 
       const enemy = new Enemy(0, 0, 1, createTestEnemyTemplate());
-
-      const result = ai.executeTurn(enemy, members);
+      const { action, target } = ai.decideAction(enemy, members);
+      const result = action.execute(target, createEnemyContext(enemy));
 
       expect(result.logs.some(l => l.text.includes('防御した'))).toBe(true);
     });

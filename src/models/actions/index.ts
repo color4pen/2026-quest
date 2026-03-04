@@ -3,7 +3,9 @@ export type { Action, ActionContext, ActionResult, ActionTargetType, ActionLog }
 
 // Action implementations
 export { AttackAction } from './AttackAction';
+export type { AttackOptions } from './AttackAction';
 export { DefendAction } from './DefendAction';
 export { SkillAction } from './SkillAction';
 export { ItemAction } from './ItemAction';
 export { DoubleAttackAction } from './DoubleAttackAction';
+export { WaitAction } from './WaitAction';
