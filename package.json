@@ -1,8 +1,13 @@
 {
   "name": "2026-quest",
-  "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Dragon Quest style 2D turn-based RPG built with React + TypeScript",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/color4pen/2026-quest.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
