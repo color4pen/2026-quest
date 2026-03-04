@@ -55,7 +55,7 @@ describe('DoubleAttackAction', () => {
     expect(action.canExecute(context)).toBe(false);
   });
 
-  it('2回攻撃する', () => {
+  it('1撃目を実行し、2撃目を followUpActions で返す', () => {
     const action = new DoubleAttackAction();
     const context = createContext({ attack: 10 });
     const target = createTarget(100);
@@ -64,12 +64,29 @@ describe('DoubleAttackAction', () => {
 
     expect(result.success).toBe(true);
     expect(result.logs[0].text).toBe('テスト勇者の連続攻撃！');
-    // 2回のダメージログ
+    // 1撃目のダメージログ
     const damageLogs = result.logs.filter(l => l.type === 'damage');
-    expect(damageLogs.length).toBe(2);
+    expect(damageLogs.length).toBe(1);
+    // 2撃目は followUpActions にある
+    expect(result.followUpActions).toBeDefined();
+    expect(result.followUpActions!.length).toBe(1);
   });
 
-  it('1回目の攻撃で倒した場合2回目は実行しない', () => {
+  it('followUpActions の2撃目がダメージを与える', () => {
+    const action = new DoubleAttackAction();
+    const context = createContext({ attack: 10 });
+    const target = createTarget(100);
+
+    const result = action.execute(target, context);
+    const followUp = result.followUpActions![0];
+    const followUpResult = followUp.execute(target, context);
+
+    expect(followUpResult.success).toBe(true);
+    const damageLogs = followUpResult.logs.filter(l => l.type === 'damage');
+    expect(damageLogs.length).toBe(1);
+  });
+
+  it('1回目の攻撃で倒した場合 followUpActions は返さない', () => {
     const action = new DoubleAttackAction();
     const context = createContext({ attack: 100 }); // 高攻撃力
     const target = createTarget(5); // 低HP
@@ -82,6 +99,8 @@ describe('DoubleAttackAction', () => {
     expect(damageLogs.length).toBe(1);
     // 倒したログが出る
     expect(result.logs.some(l => l.text.includes('を倒した'))).toBe(true);
+    // followUpActions がない
+    expect(result.followUpActions).toBeUndefined();
   });
 
   it('ターゲットがいない場合は失敗', () => {

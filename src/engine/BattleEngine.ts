@@ -383,15 +383,60 @@ export class BattleEngine {
    */
   private executePartyMemberAction(member: PartyMember, action: PartyMemberAction): void {
     const resolved = this.resolveAction(member, action);
-    if (resolved) {
-      const context = this.createActionContext(member);
-      const result = resolved.action.execute(resolved.target, context);
-      this.addLogs(result.logs);
+    if (!resolved) {
+      this.proceedToNextAction();
+      return;
     }
+
+    const context = this.createActionContext(member);
+    const result = resolved.action.execute(resolved.target, context);
+    this.addLogs(result.logs);
+    this.notifyListeners();
 
     if (this.endBattleIf('victory', this.getAliveEnemies().length === 0)) return;
 
-    // 次の行動へ（遅延付き）
+    // followUpActions があれば遅延実行
+    if (result.followUpActions && result.followUpActions.length > 0) {
+      this.executeFollowUps(result.followUpActions, resolved.target, context, () => {
+        this.proceedToNextAction();
+      });
+    } else {
+      this.proceedToNextAction();
+    }
+  }
+
+  /**
+   * followUpActions を順次実行
+   */
+  private executeFollowUps(
+    actions: Action[],
+    target: PartyMember | Enemy | null,
+    context: ActionContext,
+    onComplete: () => void
+  ): void {
+    if (actions.length === 0 || (target && 'isDead' in target && target.isDead())) {
+      onComplete();
+      return;
+    }
+
+    const [current, ...rest] = actions;
+
+    this.scheduleAction(() => {
+      const result = current.execute(target, context);
+      this.addLogs(result.logs);
+      this.notifyListeners();
+
+      if (this.endBattleIf('victory', this.getAliveEnemies().length === 0)) return;
+
+      // 再帰的に残りを実行
+      this.executeFollowUps(rest, target, context, onComplete);
+    }, 300);
+  }
+
+  /**
+   * 次の行動へ進む
+   */
+  private proceedToNextAction(): void {
     this.scheduleAction(() => {
       this.executeNextPartyAction();
       this.notifyListeners();
