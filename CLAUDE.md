@@ -11,15 +11,15 @@
 - Actionクラスは `src/models/actions/` に配置
 
 ## レビュー
-- レビュー時は `docs/reviews/REVIEW_GUIDELINES.md` の観点を参照
-- 過去のレビュー履歴は `docs/reviews/YYYYMMDD-{機能名}.md` を参照
-- レビュー完了後は履歴を `docs/reviews/` に保存
-- レビューは設計と実装でディレクトリを分けて記録:
+- レビュー観点は `docs/reviews/REVIEW_GUIDELINES.md` を参照
+- レビュー記録の保存先:
   - 設計レビュー: `docs/reviews/design/YYYYMMDD-{機能名}.md`
   - 実装レビュー: `docs/reviews/impl/YYYYMMDD-{機能名}.md`
-- 設計レビューで指摘があった場合のみ `design/` に履歴を作成
-- 実装レビュー（PRレビュー）で指摘があった場合のみ `impl/` に履歴を作成
-- **レビュー指摘で新しい観点が追加された場合は `REVIEW_GUIDELINES.md` も更新すること**
+  - コードベースレビュー: `docs/reviews/codebase/YYYYMMDD-{テーマ}.md`
+- **レビュー記録は指摘があった場合のみ作成**（LGTMのみの場合は不要）
+- **レビュー記録に途中状態（「対応中」等）を書き込まない** - 完了時にのみ記録
+- コードベースレビュー起点のタスク完了時は、元のレビューファイルを `✅ 対応済み` に更新しPR番号を記載
+- レビュー指摘で新しい観点が追加された場合は `REVIEW_GUIDELINES.md` も更新
 
 ## 技術的意思決定（ADR）
 - 「後から"なぜこうしたの？"と聞かれそうな判断」は `docs/decisions/` に記録

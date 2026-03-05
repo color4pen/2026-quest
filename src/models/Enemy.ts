@@ -1,11 +1,7 @@
 import {
-  Position,
   ENEMY_BASE_STATS,
-  MAP_WIDTH,
-  MAP_HEIGHT,
   EnemyBattleConfig,
 } from '../types/game';
-import { ENEMY_TEMPLATES } from '../data/enemyTemplates';
 import {
   GameEntity,
   GameEntityState,
@@ -45,12 +41,11 @@ export class Enemy extends GameEntity implements Interactable, Combatant {
   // バトル設定（Enemyが所有）
   public readonly battleConfig: EnemyBattleConfig;
 
-  constructor(x: number, y: number, playerLevel: number, battleConfig?: EnemyBattleConfig) {
+  constructor(x: number, y: number, playerLevel: number, battleConfig: EnemyBattleConfig) {
     super(x, y);
 
-    // バトル設定を所有（渡されなければランダムに選択）
-    this.battleConfig = battleConfig ??
-      ENEMY_TEMPLATES[Math.floor(Math.random() * ENEMY_TEMPLATES.length)];
+    // バトル設定を所有
+    this.battleConfig = battleConfig;
 
     // ステータス初期化（敵ごとの倍率を適用）
     const baseHp = ENEMY_BASE_STATS.hp + playerLevel * 10;
@@ -213,43 +208,4 @@ export class Enemy extends GameEntity implements Interactable, Combatant {
     };
   }
 
-  // ==================== ファクトリ ====================
-
-  /**
-   * 複数の敵を生成
-   */
-  static spawnEnemies(
-    count: number,
-    playerPosition: Position,
-    playerLevel: number,
-    existingPositions: Position[] = []
-  ): Enemy[] {
-    const enemies: Enemy[] = [];
-    const occupied = new Set(
-      [...existingPositions, playerPosition].map(p => `${p.x},${p.y}`)
-    );
-
-    for (let i = 0; i < count; i++) {
-      let x: number, y: number;
-      let attempts = 0;
-      const maxAttempts = 100;
-
-      do {
-        x = Math.floor(Math.random() * MAP_WIDTH);
-        y = Math.floor(Math.random() * MAP_HEIGHT);
-        attempts++;
-      } while (
-        attempts < maxAttempts &&
-        (occupied.has(`${x},${y}`) ||
-          Math.abs(x - playerPosition.x) + Math.abs(y - playerPosition.y) < 3)
-      );
-
-      if (attempts < maxAttempts) {
-        occupied.add(`${x},${y}`);
-        enemies.push(new Enemy(x, y, playerLevel));
-      }
-    }
-
-    return enemies;
-  }
 }
