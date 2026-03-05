@@ -200,7 +200,6 @@ describe('SaveManager', () => {
 
     it('署名が改ざんされていたらロードが null を返す', () => {
       const saveData = createMinimalSaveData();
-      const payloadJson = JSON.stringify(saveData);
       const signedData: SignedSaveData = {
         payload: saveData,
         signature: 'tampered-signature',
