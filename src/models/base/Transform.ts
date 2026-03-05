@@ -2,7 +2,7 @@ import { Position, Direction, MAP_WIDTH, MAP_HEIGHT } from '../../types/game';
 
 /**
  * Transformコンポーネント
- * Unity の Transform に相当 - 位置と移動を管理
+ * 位置と移動を管理するドメインクラス
  */
 export class Transform implements Position {
   private _x: number;

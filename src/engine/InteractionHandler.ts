@@ -1,6 +1,6 @@
 import { Position } from '../types/game';
 import { Enemy, NPC } from '../models';
-import { GameObject, isInteractable } from '../components/game';
+import { GameEntity, isInteractable } from '../models/base';
 
 export type InteractionResult =
   | { type: 'dialogue'; npc: NPC }
@@ -13,7 +13,7 @@ export class InteractionHandler {
   /**
    * 指定位置のインタラクション対象をチェックし、結果を返す
    */
-  check(objects: GameObject[], nextPosition: Position, player: GameObject): InteractionResult {
+  check(objects: GameEntity[], nextPosition: Position, player: GameEntity): InteractionResult {
     for (const obj of objects) {
       if (obj.isAt(nextPosition) && isInteractable(obj) && obj.canInteract()) {
         const result = obj.onInteract(player);

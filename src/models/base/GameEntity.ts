@@ -1,11 +1,10 @@
 import { Position, CameraState } from '../../types/game';
 import { Transform } from './Transform';
-import { Renderer } from './Renderer';
 
 /**
- * GameObjectの基本状態（React用）
+ * GameEntityの基本状態（React用）
  */
-export interface GameObjectState {
+export interface GameEntityState {
   id: string;
   x: number;
   y: number;
@@ -13,19 +12,19 @@ export interface GameObjectState {
 }
 
 /**
- * GameObjectベースクラス
- * Unity の GameObject に相当 - 全てのゲームエンティティの基底クラス
+ * GameEntityベースクラス
+ * 座標と状態のみを持つ純粋なドメインクラス
+ * 描画ロジックは含まない（プレゼンテーション層が担当）
  */
-export abstract class GameObject {
+export abstract class GameEntity {
   private static nextId = 0;
 
   public readonly id: string;
   public readonly transform: Transform;
-  protected renderer: Renderer | null = null;
   protected _active: boolean = true;
 
   constructor(x: number = 0, y: number = 0) {
-    this.id = `${this.constructor.name}_${GameObject.nextId++}`;
+    this.id = `${this.constructor.name}_${GameEntity.nextId++}`;
     this.transform = new Transform(x, y);
   }
 
@@ -39,8 +38,8 @@ export abstract class GameObject {
   get active(): boolean { return this._active; }
   set active(value: boolean) { this._active = value; }
 
-  // 描画順序
-  get zIndex(): number { return this.renderer?.zIndex ?? 0; }
+  // 描画順序（デフォルト0、サブクラスでオーバーライド可能）
+  get zIndex(): number { return 0; }
 
   /**
    * 指定座標にいるか判定
@@ -50,19 +49,18 @@ export abstract class GameObject {
   }
 
   /**
-   * 描画
-   */
-  render(ctx: CanvasRenderingContext2D, camera?: CameraState): void {
-    if (!this._active || !this.renderer) return;
-    this.renderer.render(ctx, camera);
-  }
-
-  /**
    * オブジェクトがビューポート内にあるかチェック
    */
   isInViewport(camera: CameraState): boolean {
-    if (!this.renderer) return true;
-    return this.renderer.isInViewport(camera);
+    const halfW = camera.viewportWidth / 2;
+    const halfH = camera.viewportHeight / 2;
+
+    return (
+      this.transform.x >= camera.x - halfW - 1 &&
+      this.transform.x <= camera.x + halfW + 1 &&
+      this.transform.y >= camera.y - halfH - 1 &&
+      this.transform.y <= camera.y + halfH + 1
+    );
   }
 
   /**
@@ -82,7 +80,7 @@ export abstract class GameObject {
   /**
    * 基本状態を取得
    */
-  getBaseState(): GameObjectState {
+  getBaseState(): GameEntityState {
     return {
       id: this.id,
       x: this.transform.x,
@@ -94,5 +92,5 @@ export abstract class GameObject {
   /**
    * 状態を取得（サブクラスでオーバーライド）
    */
-  abstract getState(): GameObjectState;
+  abstract getState(): GameEntityState;
 }

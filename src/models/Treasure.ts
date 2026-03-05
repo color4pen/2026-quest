@@ -1,39 +1,33 @@
 import { Position, MAP_WIDTH, MAP_HEIGHT } from '../types/game';
 import {
-  GameObject,
-  GameObjectState,
-  TreasureRenderer,
+  GameEntity,
+  GameEntityState,
   Interactable,
   InteractionResult,
-} from '../components/game';
+} from './base';
 
 /**
  * 宝箱状態（React用）
  */
-export interface TreasureState extends GameObjectState {
+export interface TreasureState extends GameEntityState {
   gold: number;
   opened: boolean;
 }
 
 /**
  * 宝箱クラス
- * GameObjectを継承し、Interactableを実装
+ * GameEntityを継承し、Interactableを実装。
+ * 描画ロジックは持たない（プレゼンテーション層が担当）。
  */
-export class Treasure extends GameObject implements Interactable {
+export class Treasure extends GameEntity implements Interactable {
   public gold: number;
   public opened: boolean;
-
-  private treasureRenderer: TreasureRenderer;
 
   constructor(x: number, y: number, gold?: number) {
     super(x, y);
 
     this.gold = gold ?? 20 + Math.floor(Math.random() * 50);
     this.opened = false;
-
-    // Rendererを設定（自身の描画方法を所有）
-    this.treasureRenderer = new TreasureRenderer(this.transform);
-    this.renderer = this.treasureRenderer;
   }
 
   // ==================== Interactable実装 ====================
@@ -41,7 +35,7 @@ export class Treasure extends GameObject implements Interactable {
   /**
    * プレイヤーとの相互作用（宝箱を開ける）
    */
-  onInteract(_player: GameObject): InteractionResult {
+  onInteract(_player: GameEntity): InteractionResult {
     if (this.opened) {
       return {
         type: 'none',
@@ -76,7 +70,6 @@ export class Treasure extends GameObject implements Interactable {
     }
 
     this.opened = true;
-    this.treasureRenderer.setOpened(true);
     return this.gold;
   }
 

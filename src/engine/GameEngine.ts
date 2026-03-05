@@ -29,7 +29,7 @@ import {
 import { StateKey } from '../data/stateKeys';
 import { BattleEngine } from './BattleEngine';
 import { DialogueEngine } from './DialogueEngine';
-import { GameObject } from '../components/game';
+import { RenderableEntity } from '../components/GameCanvas';
 import { INITIAL_MAP_ID } from '../data/maps';
 import { INITIAL_PARTY_MEMBER, getPartyMemberDefinition } from '../data/partyMembers';
 import { CameraManager } from './CameraManager';
@@ -233,8 +233,8 @@ export class GameEngine {
     this.notifyListeners();
   }
 
-  public getGameObjects(): GameObject[] {
-    return this.explorationController.getGameObjects();
+  public getRenderableEntities(): RenderableEntity[] {
+    return this.explorationController.getRenderableEntities();
   }
 
   // ==================== バトル ====================

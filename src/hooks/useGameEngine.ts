@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Direction, BattleCommand, SkillDefinition, DialogueChoice, ShopItem, PartyMemberDefinition, EquipmentSlot } from '../types/game';
 import { GameEngine, GameEngineState } from '../engine';
-import { GameObject } from '../components/game';
+import { RenderableEntity } from '../components/GameCanvas';
 import { SaveManager } from '../services/SaveManager';
 import { SaveSlotInfo } from '../types/save';
 
@@ -107,9 +107,9 @@ export function useGameEngine(isPaused: boolean = false) {
     hasData: () => SaveManager.hasSaveData(),
   }), [engine]);
 
-  // GameObjects取得
-  const gameObjects = useMemo<GameObject[]>(() => {
-    return engine.getGameObjects();
+  // RenderableEntities取得
+  const entities = useMemo<RenderableEntity[]>(() => {
+    return engine.getRenderableEntities();
   }, [engine, state]);
 
   // キーボードイベント（バトル/会話/ショップ/ポーズ中は無効）
@@ -156,7 +156,7 @@ export function useGameEngine(isPaused: boolean = false) {
 
   return {
     state,
-    gameObjects,
+    entities,
     battle,
     dialogue,
     shop,

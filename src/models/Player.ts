@@ -1,21 +1,21 @@
 import { Direction } from '../types/game';
-import { GameObject, GameObjectState, PlayerRenderer } from '../components/game';
+import { GameEntity, GameEntityState } from './base';
 
 /**
  * プレイヤー状態（React用）
  * 移動・描画に必要な情報のみ
  */
-export type PlayerState = GameObjectState;
+export type PlayerState = GameEntityState;
 
 /**
  * プレイヤークラス
- * GameObjectを継承し、マップ上での移動・描画のみを担当。
+ * GameEntityを継承し、マップ上での移動のみを担当。
  * 戦闘・ステータス管理は Party/PartyMember が担う。
+ * 描画はプレゼンテーション層（GameCanvas）が担当。
  */
-export class Player extends GameObject {
+export class Player extends GameEntity {
   constructor(x: number = 5, y: number = 5) {
     super(x, y);
-    this.renderer = new PlayerRenderer(this.transform);
   }
 
   /**

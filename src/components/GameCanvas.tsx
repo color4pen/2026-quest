@@ -1,8 +1,21 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
-import { TileType, GrassDecoration, TILE_SIZE, CameraState, MapObject } from '../types/game';
+import { TileType, GrassDecoration, TILE_SIZE, CameraState, MapObject, NPCType } from '../types/game';
 import { GameMapState } from '../models';
-import { GameObject } from './game';
+import { PlayerState } from '../models/Player';
+import { EnemyState } from '../models/Enemy';
+import { NPCState } from '../models/NPC';
+import { TreasureState } from '../models/Treasure';
 import { assetPath } from '../utils/assetPath';
+
+/**
+ * 描画可能なエンティティの型
+ * 各モデルの状態をユニオンで表現
+ */
+export type RenderableEntity =
+  | ({ entityType: 'player' } & PlayerState)
+  | ({ entityType: 'enemy' } & EnemyState)
+  | ({ entityType: 'npc' } & NPCState)
+  | ({ entityType: 'treasure' } & TreasureState);
 
 function useImage(src: string): HTMLImageElement | null {
   const [loaded, setLoaded] = useState(false);
@@ -28,7 +41,7 @@ function useImage(src: string): HTMLImageElement | null {
 }
 
 interface GameCanvasProps {
-  gameObjects: GameObject[];
+  entities: RenderableEntity[];
   map: GameMapState;
   camera: CameraState;
 }
@@ -36,8 +49,9 @@ interface GameCanvasProps {
 /**
  * GameCanvas - ゲーム画面の描画を担当
  * カメラ追従型：ビューポート内のタイルのみ描画（フラスタムカリング）
+ * ドメインモデルから受け取った状態（RenderableEntity）に基づいて型別に描画。
  */
-export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
+export function GameCanvas({ entities, map, camera }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const villageImage = useImage(assetPath('/assets/images/tiles/village.jpg'));
   const caveImage = useImage(assetPath('/assets/images/tiles/cave.jpg'));
@@ -46,10 +60,19 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
   const mapHeight = map.tiles.length;
   const mapWidth = map.tiles[0]?.length ?? 20;
 
-  const sortedObjects = useMemo(
-    () => [...gameObjects].sort((a, b) => a.zIndex - b.zIndex),
-    [gameObjects],
-  );
+  // ビューポート内のアクティブなエンティティのみ
+  const visibleEntities = useMemo(() => {
+    const halfW = camera.viewportWidth / 2;
+    const halfH = camera.viewportHeight / 2;
+
+    return entities.filter(e =>
+      e.active &&
+      e.x >= camera.x - halfW - 1 &&
+      e.x <= camera.x + halfW + 1 &&
+      e.y >= camera.y - halfH - 1 &&
+      e.y <= camera.y + halfH + 1
+    );
+  }, [entities, camera]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -84,11 +107,9 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
     // MapObject描画（村、洞窟、テント等）
     drawObjects(ctx, map.objects, camera, villageImage, caveImage, tentImage);
 
-    // GameObjectを描画（ビューポート内のみ）
-    sortedObjects.forEach(obj => {
-      if (obj.active && obj.isInViewport(camera)) {
-        obj.render(ctx, camera);
-      }
+    // エンティティを型別に描画
+    visibleEntities.forEach(entity => {
+      drawEntity(ctx, entity, camera);
     });
 
     // グリッド線（可視範囲のみ）
@@ -106,7 +127,7 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
       ctx.lineTo(canvas.width, screenY);
     }
     ctx.stroke();
-  }, [gameObjects, map, mapHeight, mapWidth, camera, villageImage, caveImage, tentImage]);
+  }, [visibleEntities, map, mapHeight, mapWidth, camera, villageImage, caveImage, tentImage]);
 
   return (
     <div className="game-screen">
@@ -507,4 +528,255 @@ function drawObjects(
         break;
     }
   }
+}
+
+// ==================== エンティティ描画（型ベースディスパッチ） ====================
+
+/**
+ * ピクセル座標を取得（カメラ座標を考慮）
+ */
+function getPixelPosition(x: number, y: number, camera: CameraState): { px: number; py: number } {
+  const screenX = (x - camera.x + camera.viewportWidth / 2) * TILE_SIZE;
+  const screenY = (y - camera.y + camera.viewportHeight / 2) * TILE_SIZE;
+  return { px: screenX, py: screenY };
+}
+
+/**
+ * エンティティを型別に描画
+ */
+function drawEntity(
+  ctx: CanvasRenderingContext2D,
+  entity: RenderableEntity,
+  camera: CameraState,
+): void {
+  switch (entity.entityType) {
+    case 'player':
+      drawPlayer(ctx, entity, camera);
+      break;
+    case 'enemy':
+      drawEnemy(ctx, entity, camera);
+      break;
+    case 'npc':
+      drawNPC(ctx, entity, camera);
+      break;
+    case 'treasure':
+      drawTreasure(ctx, entity, camera);
+      break;
+  }
+}
+
+/**
+ * プレイヤー描画
+ */
+function drawPlayer(
+  ctx: CanvasRenderingContext2D,
+  state: PlayerState,
+  camera: CameraState,
+): void {
+  const { px, py } = getPixelPosition(state.x, state.y, camera);
+
+  // 体
+  ctx.fillStyle = '#e94560';
+  ctx.fillRect(px + 8, py + 12, 16, 12);
+
+  // 頭
+  ctx.fillStyle = '#ffdbac';
+  ctx.fillRect(px + 10, py + 6, 12, 10);
+
+  // 髪
+  ctx.fillStyle = '#4a3728';
+  ctx.fillRect(px + 10, py + 4, 12, 4);
+
+  // 目
+  ctx.fillStyle = '#000';
+  ctx.fillRect(px + 12, py + 10, 2, 2);
+  ctx.fillRect(px + 18, py + 10, 2, 2);
+
+  // 剣
+  ctx.fillStyle = '#c0c0c0';
+  ctx.fillRect(px + 24, py + 14, 4, 8);
+  ctx.fillStyle = '#8b7355';
+  ctx.fillRect(px + 24, py + 20, 4, 3);
+
+  // 脚
+  ctx.fillStyle = '#0f3460';
+  ctx.fillRect(px + 10, py + 24, 6, 4);
+  ctx.fillRect(px + 16, py + 24, 6, 4);
+}
+
+/**
+ * 敵描画
+ */
+function drawEnemy(
+  ctx: CanvasRenderingContext2D,
+  state: EnemyState,
+  camera: CameraState,
+): void {
+  const { px, py } = getPixelPosition(state.x, state.y, camera);
+
+  // 体
+  ctx.fillStyle = '#3d7c3f';
+  ctx.fillRect(px + 6, py + 10, 20, 14);
+  ctx.fillRect(px + 4, py + 14, 24, 10);
+
+  // 目
+  ctx.fillStyle = '#ff0000';
+  ctx.fillRect(px + 10, py + 16, 4, 4);
+  ctx.fillRect(px + 18, py + 16, 4, 4);
+
+  // ハイライト
+  ctx.fillStyle = '#5a9c5c';
+  ctx.fillRect(px + 8, py + 12, 6, 4);
+}
+
+/**
+ * NPC種別から色設定を取得
+ */
+function getNPCColorsForType(type: NPCType): {
+  bodyColor: string;
+  hairColor: string;
+  legsColor: string;
+  iconColor: string;
+} {
+  switch (type) {
+    case 'villager':
+      return {
+        bodyColor: '#6b8e23',
+        hairColor: '#4a3728',
+        legsColor: '#3d2817',
+        iconColor: '#ffffff',
+      };
+    case 'shopkeeper':
+      return {
+        bodyColor: '#daa520',
+        hairColor: '#2f4f4f',
+        legsColor: '#3d2817',
+        iconColor: '#ffd700',
+      };
+    case 'innkeeper':
+      return {
+        bodyColor: '#4169e1',
+        hairColor: '#8b4513',
+        legsColor: '#3d2817',
+        iconColor: '#87ceeb',
+      };
+    default:
+      return {
+        bodyColor: '#6b8e23',
+        hairColor: '#4a3728',
+        legsColor: '#3d2817',
+        iconColor: '#ffffff',
+      };
+  }
+}
+
+/**
+ * NPC描画
+ */
+function drawNPC(
+  ctx: CanvasRenderingContext2D,
+  state: NPCState,
+  camera: CameraState,
+): void {
+  const { px, py } = getPixelPosition(state.x, state.y, camera);
+
+  // renderTypeがcomputerの場合は別の描画
+  if (state.renderType === 'computer') {
+    drawComputer(ctx, px, py);
+    return;
+  }
+
+  // NPC種別に応じた色
+  const colors = getNPCColorsForType(state.type);
+
+  // 体
+  ctx.fillStyle = colors.bodyColor;
+  ctx.fillRect(px + 8, py + 12, 16, 12);
+
+  // 頭
+  ctx.fillStyle = '#ffdbac';
+  ctx.fillRect(px + 10, py + 6, 12, 10);
+
+  // 髪
+  ctx.fillStyle = colors.hairColor;
+  ctx.fillRect(px + 10, py + 4, 12, 4);
+
+  // 目
+  ctx.fillStyle = '#000';
+  ctx.fillRect(px + 12, py + 10, 2, 2);
+  ctx.fillRect(px + 18, py + 10, 2, 2);
+
+  // 脚
+  ctx.fillStyle = colors.legsColor;
+  ctx.fillRect(px + 10, py + 24, 6, 4);
+  ctx.fillRect(px + 16, py + 24, 6, 4);
+
+  // NPC種別アイコン
+  ctx.fillStyle = colors.iconColor;
+  ctx.fillRect(px + 24, py + 4, 6, 6);
+}
+
+/**
+ * パソコン描画
+ */
+function drawComputer(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+): void {
+  // モニター外枠
+  ctx.fillStyle = '#2c2c2c';
+  ctx.fillRect(px + 4, py + 4, 24, 18);
+
+  // モニター画面
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(px + 6, py + 6, 20, 14);
+
+  // 画面の文字（緑色のターミナル風）
+  ctx.fillStyle = '#00ff00';
+  ctx.fillRect(px + 8, py + 8, 8, 2);
+  ctx.fillRect(px + 8, py + 12, 12, 2);
+  ctx.fillRect(px + 8, py + 16, 6, 2);
+
+  // カーソル点滅風
+  ctx.fillStyle = '#00ff00';
+  ctx.fillRect(px + 16, py + 16, 3, 2);
+
+  // モニタースタンド
+  ctx.fillStyle = '#3c3c3c';
+  ctx.fillRect(px + 13, py + 22, 6, 3);
+  ctx.fillRect(px + 10, py + 25, 12, 2);
+
+  // キーボード
+  ctx.fillStyle = '#4a4a4a';
+  ctx.fillRect(px + 4, py + 28, 24, 4);
+
+  // キーボードのキー
+  ctx.fillStyle = '#6a6a6a';
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(px + 6 + i * 4, py + 29, 3, 2);
+  }
+}
+
+/**
+ * 宝箱描画
+ */
+function drawTreasure(
+  ctx: CanvasRenderingContext2D,
+  state: TreasureState,
+  camera: CameraState,
+): void {
+  // 開封済みは描画しない
+  if (state.opened) return;
+
+  const { px, py } = getPixelPosition(state.x, state.y, camera);
+
+  // 宝箱
+  ctx.fillStyle = '#8b7355';
+  ctx.fillRect(px + 8, py + 14, 16, 10);
+
+  // 金具
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(px + 14, py + 18, 4, 4);
+  ctx.fillRect(px + 10, py + 14, 12, 2);
 }
