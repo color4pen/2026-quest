@@ -94,3 +94,11 @@ export interface SaveData {
   /** ゲーム状態（フラグ・進行度） */
   gameState: Record<string, number>;
 }
+
+/**
+ * 署名付きセーブデータ（localStorage保存形式）
+ */
+export interface SignedSaveData {
+  payload: SaveData;
+  signature: string;
+}
