@@ -41,6 +41,7 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const villageImage = useImage(assetPath('/assets/images/tiles/village.jpg'));
   const caveImage = useImage(assetPath('/assets/images/tiles/cave.jpg'));
+  const tentImage = useImage(assetPath('/assets/images/tiles/Tent-F.png'));
 
   const mapHeight = map.tiles.length;
   const mapWidth = map.tiles[0]?.length ?? 20;
@@ -80,8 +81,8 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
       }
     }
 
-    // MapObject描画（村、洞窟等）
-    drawObjects(ctx, map.objects, camera, villageImage, caveImage);
+    // MapObject描画（村、洞窟、テント等）
+    drawObjects(ctx, map.objects, camera, villageImage, caveImage, tentImage);
 
     // GameObjectを描画（ビューポート内のみ）
     sortedObjects.forEach(obj => {
@@ -105,7 +106,7 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
       ctx.lineTo(canvas.width, screenY);
     }
     ctx.stroke();
-  }, [gameObjects, map, mapHeight, mapWidth, camera, villageImage, caveImage]);
+  }, [gameObjects, map, mapHeight, mapWidth, camera, villageImage, caveImage, tentImage]);
 
   return (
     <div className="game-screen">
@@ -261,6 +262,7 @@ function drawObjects(
   camera: CameraState,
   villageImage: HTMLImageElement | null,
   caveImage: HTMLImageElement | null,
+  tentImage: HTMLImageElement | null,
 ): void {
   if (!objects || objects.length === 0) return;
 
@@ -300,6 +302,202 @@ function drawObjects(
         if (caveImage) {
           ctx.drawImage(caveImage, px, py, pw, ph);
         }
+        break;
+
+      case 'car':
+        // 車（2x1タイル、プログラマティック描画）
+        // 背景（草地）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // 車体（青）
+        ctx.fillStyle = '#3a5a8c';
+        ctx.fillRect(px + 4, py + 8, pw - 8, ph - 12);
+        // 屋根
+        ctx.fillStyle = '#2a4a7c';
+        ctx.fillRect(px + 16, py + 4, 24, 12);
+        // 窓
+        ctx.fillStyle = '#87ceeb';
+        ctx.fillRect(px + 18, py + 6, 8, 8);
+        ctx.fillRect(px + 28, py + 6, 8, 8);
+        // タイヤ
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.arc(px + 14, py + 26, 5, 0, Math.PI * 2);
+        ctx.arc(px + 50, py + 26, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // ヘッドライト
+        ctx.fillStyle = '#ffff88';
+        ctx.fillRect(px + pw - 8, py + 14, 4, 4);
+        break;
+
+      case 'car_gray':
+        // 車（灰色、2x1タイル）
+        // 背景（草地）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // 車体（灰色）
+        ctx.fillStyle = '#6a6a6a';
+        ctx.fillRect(px + 4, py + 8, pw - 8, ph - 12);
+        // 屋根
+        ctx.fillStyle = '#5a5a5a';
+        ctx.fillRect(px + 16, py + 4, 24, 12);
+        // 窓
+        ctx.fillStyle = '#87ceeb';
+        ctx.fillRect(px + 18, py + 6, 8, 8);
+        ctx.fillRect(px + 28, py + 6, 8, 8);
+        // タイヤ
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.arc(px + 14, py + 26, 5, 0, Math.PI * 2);
+        ctx.arc(px + 50, py + 26, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // ヘッドライト
+        ctx.fillStyle = '#ffff88';
+        ctx.fillRect(px + pw - 8, py + 14, 4, 4);
+        break;
+
+      case 'torii':
+        // 鳥居（2x2タイル、湖の中に立つ赤い鳥居）
+        // 背景（水）
+        ctx.fillStyle = '#4a90e2';
+        ctx.fillRect(px, py, pw, ph);
+        // 柱（左右）
+        ctx.fillStyle = '#c41e3a';
+        ctx.fillRect(px + 8, py + 16, 8, ph - 16);   // 左柱
+        ctx.fillRect(px + pw - 16, py + 16, 8, ph - 16); // 右柱
+        // 笠木（上の横棒）
+        ctx.fillStyle = '#8b0000';
+        ctx.fillRect(px + 2, py + 8, pw - 4, 10);
+        // 島木（笠木の下の横棒）
+        ctx.fillStyle = '#c41e3a';
+        ctx.fillRect(px + 6, py + 20, pw - 12, 6);
+        // 貫（中央の横棒）
+        ctx.fillRect(px + 10, py + 36, pw - 20, 5);
+        // 笠木の反り（装飾）
+        ctx.fillStyle = '#8b0000';
+        ctx.fillRect(px, py + 6, 6, 6);
+        ctx.fillRect(px + pw - 6, py + 6, 6, 6);
+        break;
+
+      case 'tent':
+        // テント（5x5タイル、スプライトシートから切り出し）
+        // 背景（草地）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        if (tentImage) {
+          // スプライトシートからテント部分を切り出し（入口が見える大きいテント）
+          // ソース: x=256, y=0, 幅=160, 高さ=160 (5x5ブロック)
+          ctx.drawImage(
+            tentImage,
+            256, 0, 160, 160,   // ソース領域（入口付きテント）
+            px, py, pw, ph      // 描画先
+          );
+        }
+        break;
+
+      case 'none':
+        // 描画しない（他のオブジェクトで描画済み）
+        break;
+
+      case 'campfire':
+        // 焚き火（2x2タイル）
+        ctx.fillStyle = '#6b6b7a';
+        ctx.fillRect(px, py, pw, ph);
+        // 火の土台（石）
+        ctx.fillStyle = '#555555';
+        ctx.beginPath();
+        ctx.arc(px + pw / 2, py + ph / 2 + 8, 20, 0, Math.PI * 2);
+        ctx.fill();
+        // 炎
+        ctx.fillStyle = '#ff6600';
+        ctx.beginPath();
+        ctx.moveTo(px + pw / 2, py + 8);
+        ctx.lineTo(px + pw / 2 - 12, py + ph / 2 + 8);
+        ctx.lineTo(px + pw / 2 + 12, py + ph / 2 + 8);
+        ctx.fill();
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath();
+        ctx.moveTo(px + pw / 2, py + 16);
+        ctx.lineTo(px + pw / 2 - 6, py + ph / 2 + 4);
+        ctx.lineTo(px + pw / 2 + 6, py + ph / 2 + 4);
+        ctx.fill();
+        break;
+
+      case 'stove':
+        // ストーブ（1x1タイル）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // ストーブ本体
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(px + 4, py + 8, pw - 8, ph - 12);
+        // 上部
+        ctx.fillStyle = '#444444';
+        ctx.fillRect(px + 2, py + 4, pw - 4, 8);
+        // 炎窓
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(px + 8, py + 16, pw - 16, 8);
+        break;
+
+      case 'stove_cylinder':
+        // 円柱ストーブ（1x1タイル）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // 煙突
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(px + 12, py + 2, 8, 10);
+        // 円柱本体
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.ellipse(px + pw / 2, py + ph - 8, 12, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(px + 4, py + 10, 24, ph - 18);
+        // 上部（楕円）
+        ctx.fillStyle = '#333333';
+        ctx.beginPath();
+        ctx.ellipse(px + pw / 2, py + 10, 12, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // 炎窓
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(px + 10, py + 16, 12, 6);
+        break;
+
+      case 'table':
+        // テーブル（2x1タイル）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // テーブル天板
+        ctx.fillStyle = '#8b5a2b';
+        ctx.fillRect(px + 2, py + 8, pw - 4, 12);
+        // 脚
+        ctx.fillStyle = '#6b4423';
+        ctx.fillRect(px + 6, py + 20, 6, 8);
+        ctx.fillRect(px + pw - 12, py + 20, 6, 8);
+        break;
+
+      case 'montbell_chair':
+        // モンベルの椅子（1x1タイル、青いアウトドアチェア）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // 脚（X型フレーム）
+        ctx.fillStyle = '#333333';
+        ctx.beginPath();
+        ctx.moveTo(px + 6, py + 28);
+        ctx.lineTo(px + 26, py + 12);
+        ctx.lineTo(px + 28, py + 14);
+        ctx.lineTo(px + 8, py + 30);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px + 26, py + 28);
+        ctx.lineTo(px + 6, py + 12);
+        ctx.lineTo(px + 4, py + 14);
+        ctx.lineTo(px + 24, py + 30);
+        ctx.fill();
+        // 座面（青）
+        ctx.fillStyle = '#0066cc';
+        ctx.fillRect(px + 4, py + 10, 24, 10);
+        // 背もたれ（青）
+        ctx.fillStyle = '#004499';
+        ctx.fillRect(px + 6, py + 4, 20, 8);
         break;
 
       default:

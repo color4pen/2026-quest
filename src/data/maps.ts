@@ -184,6 +184,17 @@ export const MAP_FIELD: MapDefinition = {
       walkable: true,  // 通行可能（ワープする）
       warpTo: { mapId: 'dungeon', x: 10, y: 1 },
     },
+    // 車オブジェクト（キャンプ場へ）
+    {
+      id: 'car_to_campsite',
+      x: 28,
+      y: 5,
+      image: 'car',
+      width: 2,
+      height: 1,
+      walkable: true,
+      warpTo: { mapId: 'campsite', x: 10, y: 12 },
+    },
   ],
   treasures: [
     { x: 5, y: 5, gold: 30 },      // 左上の草地
@@ -199,6 +210,176 @@ export const MAP_FIELD: MapDefinition = {
     rate: 0.10,
     enemyIds: ['スライム', 'バット', 'ゴブリン', 'コボルト'],
   },
+};
+
+/**
+ * キャンプ場マップ（エンカウントなし、休息エリア）
+ * 奥に湖があり、その中央に鳥居がある緑豊かなキャンプ場
+ */
+export const MAP_CAMPSITE: MapDefinition = {
+  id: 'campsite',
+  name: 'キャンプ場',
+  playerStart: { x: 10, y: 12 },  // 車の前からスタート
+  tiles: [
+    // 20x15のマップ - 奥（上）に湖、手前（下）が緑のキャンプエリア
+    [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T],
+    [T, G, G, W, W, W, W, W, W, W, W, W, W, W, W, W, W, G, G, T],
+    [T, G, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, G, T],
+    [T, G, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, G, T],
+    [T, G, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, G, T],
+    [T, G, G, W, W, W, W, W, W, W, W, W, W, W, W, W, W, G, G, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
+    [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T],
+  ],
+  objects: [
+    // 鳥居（湖の中央）
+    {
+      id: 'torii',
+      x: 9,
+      y: 2,
+      image: 'torii',
+      width: 2,
+      height: 2,
+      walkable: false,  // 通行不可（湖の中）
+    },
+    // テント入り口（テント本体より先に定義して優先させる）
+    {
+      id: 'tent_entrance',
+      x: 15,
+      y: 11,
+      image: 'none',  // 描画しない（テント本体で描画済み）
+      width: 2,
+      height: 1,
+      walkable: true,
+      warpTo: { mapId: 'tent_interior', x: 5, y: 6 },
+    },
+    // テント本体（湖の右側に配置）
+    {
+      id: 'tent',
+      x: 13,
+      y: 7,
+      image: 'tent',
+      width: 5,
+      height: 5,
+      walkable: false,  // 通行不可
+    },
+    // テントの傍の車（ワープなし、装飾用、入り口の右）
+    {
+      id: 'parked_car',
+      x: 17,
+      y: 12,
+      image: 'car_gray',
+      width: 2,
+      height: 1,
+      walkable: false,  // 通行不可
+    },
+    // 車オブジェクト（フィールドへ戻る）
+    {
+      id: 'car_to_field',
+      x: 9,
+      y: 13,
+      image: 'car',
+      width: 2,
+      height: 1,
+      walkable: true,
+      warpTo: { mapId: 'field', x: 29, y: 6 },  // フィールドの車の下に戻る
+    },
+  ],
+  treasures: [],
+  warps: [],
+  // エンカウントなし（キャンプ場は安全）
+  encounter: undefined,
+};
+
+/**
+ * テント内マップ（NPC3人、焚き火、ストーブ、テーブル）
+ */
+export const MAP_TENT_INTERIOR: MapDefinition = {
+  id: 'tent_interior',
+  name: 'テント内',
+  playerStart: { x: 5, y: 7 },  // 入り口から入った位置
+  tiles: [
+    // 10x8のコンパクトなテント内部
+    [X, X, X, X, X, X, X, X, X, X],
+    [X, G, G, G, G, G, G, G, G, X],
+    [X, G, G, G, G, G, G, G, G, X],
+    [X, G, G, G, G, G, G, G, G, X],
+    [X, G, G, G, G, G, G, G, G, X],
+    [X, G, G, G, G, G, G, G, G, X],
+    [X, G, G, G, G, G, G, G, G, X],
+    [X, X, X, X, D, D, X, X, X, X],
+  ],
+  npcs: [
+    { npcId: 'camper_1', x: 2, y: 2 },
+    { npcId: 'camper_2', x: 7, y: 5 },
+    { npcId: 'camper_3', x: 5, y: 2 },
+  ],
+  objects: [
+    // 円柱ストーブ（中央）
+    {
+      id: 'stove_cylinder',
+      x: 4,
+      y: 2,
+      image: 'stove_cylinder',
+      width: 1,
+      height: 1,
+      walkable: false,
+    },
+    // ストーブ（左側）
+    {
+      id: 'stove_left',
+      x: 1,
+      y: 4,
+      image: 'stove',
+      width: 1,
+      height: 1,
+      walkable: false,
+    },
+    // テーブル（右側）
+    {
+      id: 'table',
+      x: 7,
+      y: 4,
+      image: 'table',
+      width: 2,
+      height: 1,
+      walkable: false,
+    },
+    // モンベルの椅子1
+    {
+      id: 'chair_1',
+      x: 3,
+      y: 4,
+      image: 'montbell_chair',
+      width: 1,
+      height: 1,
+      walkable: false,
+    },
+    // モンベルの椅子2
+    {
+      id: 'chair_2',
+      x: 6,
+      y: 4,
+      image: 'montbell_chair',
+      width: 1,
+      height: 1,
+      walkable: false,
+    },
+  ],
+  treasures: [],
+  warps: [
+    // テントから出る → キャンプ場のテント前
+    { x: 4, y: 7, toMapId: 'campsite', toX: 14, toY: 12 },
+    { x: 5, y: 7, toMapId: 'campsite', toX: 15, toY: 12 },
+  ],
+  encounter: undefined,
 };
 
 /**
@@ -253,6 +434,8 @@ export const MAP_DUNGEON: MapDefinition = {
 export const MAPS: Record<string, MapDefinition> = {
   village: MAP_VILLAGE,
   field: MAP_FIELD,
+  campsite: MAP_CAMPSITE,
+  tent_interior: MAP_TENT_INTERIOR,
   dungeon: MAP_DUNGEON,
 };
 

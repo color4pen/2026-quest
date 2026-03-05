@@ -303,4 +303,68 @@ export const NPC_DEFINITIONS: NPCDefinition[] = [
       ],
     },
   },
+  // キャンプ場のNPC
+  {
+    id: 'camper_1',
+    name: 'キャンパー',
+    type: 'villager',
+    dialogue: {
+      startId: 'start',
+      nodes: [
+        {
+          id: 'start',
+          speaker: 'キャンパー',
+          text: 'いやー、焚き火の前でのんびりするのは最高だね！ここにいると仕事を忘れられるよ。',
+          choices: [
+            { id: 'bye', text: 'そうだね', action: { type: 'close' } },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'camper_2',
+    name: 'キャンパー',
+    type: 'villager',
+    dialogue: {
+      startId: 'start',
+      nodes: [
+        {
+          id: 'start',
+          speaker: 'キャンパー',
+          text: 'この湖は神秘的だよね。鳥居があるなんて珍しい。',
+          choices: [
+            { id: 'bye', text: '確かに', action: { type: 'close' } },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    id: 'camper_3',
+    name: 'キャンパー',
+    type: 'villager',
+    dialogue: {
+      startId: 'start',
+      nodes: [
+        {
+          id: 'start',
+          speaker: 'キャンパー',
+          text: 'ストーブで温かい料理を作ってるんだ。食べていくかい？',
+          choices: [
+            { id: 'eat', text: '食べる！', nextDialogueId: 'eat' },
+            { id: 'bye', text: '遠慮しとく', action: { type: 'close' } },
+          ],
+        },
+        {
+          id: 'eat',
+          speaker: 'キャンパー',
+          text: 'どうぞ！体が温まるよ。',
+          choices: [
+            { id: 'bye', text: 'おいしい！', action: { type: 'close' } },
+          ],
+        },
+      ],
+    },
+  },
 ];
