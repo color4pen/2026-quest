@@ -8,6 +8,7 @@ import {
   MapDefinition,
   EncounterConfig,
   WarpPoint,
+  MapObject,
 } from '../types/game';
 import { Door } from './Door';
 
@@ -16,6 +17,7 @@ export interface GameMapState {
   name: string;
   tiles: TileType[][];
   grassDecorations: (GrassDecoration[] | null)[][];
+  objects: MapObject[];
 }
 
 export class GameMap {
@@ -25,6 +27,7 @@ export class GameMap {
   private grassDecorations: (GrassDecoration[] | null)[][];
   private warps: WarpPoint[];
   private doors: Door[];
+  private objects: MapObject[];
   private encounter: EncounterConfig | undefined;
 
   constructor() {
@@ -34,6 +37,7 @@ export class GameMap {
     this.grassDecorations = [];
     this.warps = [];
     this.doors = [];
+    this.objects = [];
     this.encounter = undefined;
   }
 
@@ -45,6 +49,7 @@ export class GameMap {
     this.name = definition.name;
     this.warps = definition.warps ?? [];
     this.doors = (definition.doors ?? []).map(d => new Door(d));
+    this.objects = definition.objects ?? [];
     this.encounter = definition.encounter;
 
     // タイルをコピー
@@ -72,6 +77,7 @@ export class GameMap {
     this.id = 'random';
     this.name = 'ランダムマップ';
     this.warps = [];
+    this.objects = [];
     this.encounter = {
       rate: 0.15,
       enemyIds: ['スライム', 'バット', 'ゴブリン'],
@@ -147,6 +153,33 @@ export class GameMap {
   }
 
   /**
+   * 指定座標にあるオブジェクトを取得
+   */
+  public getObjectAt(position: Position): MapObject | undefined {
+    return this.objects.find(obj =>
+      position.x >= obj.x &&
+      position.x < obj.x + obj.width &&
+      position.y >= obj.y &&
+      position.y < obj.y + obj.height
+    );
+  }
+
+  /**
+   * 指定座標に通行を阻むオブジェクトがあるか
+   */
+  public hasBlockingObjectAt(position: Position): boolean {
+    const obj = this.getObjectAt(position);
+    return obj !== undefined && !obj.walkable;
+  }
+
+  /**
+   * 全オブジェクトを取得（描画用）
+   */
+  public getObjects(): MapObject[] {
+    return this.objects;
+  }
+
+  /**
    * 指定座標の扉を取得
    */
   public getDoorAt(position: Position): Door | undefined {
@@ -206,9 +239,14 @@ export class GameMap {
     const tile = this.getTile(position);
     if (tile === null) return false;
 
-    // 通行不可タイル
+    // 1. 通行不可タイル
     const blockedTiles: TileType[] = ['water', 'tree', 'wall'];
-    return !blockedTiles.includes(tile);
+    if (blockedTiles.includes(tile)) return false;
+
+    // 2. 通行不可オブジェクト
+    if (this.hasBlockingObjectAt(position)) return false;
+
+    return true;
   }
 
   /**
@@ -227,9 +265,15 @@ export class GameMap {
         return '木が邪魔で進めない！';
       case 'wall':
         return '壁があって進めない！';
-      default:
-        return null;
     }
+
+    // オブジェクトによる通行不可
+    const obj = this.getObjectAt(position);
+    if (obj && !obj.walkable) {
+      return 'そちらには進めない！';
+    }
+
+    return null;
   }
 
   /**
@@ -252,6 +296,7 @@ export class GameMap {
       grassDecorations: this.grassDecorations.map(row =>
         row.map(decor => decor ? [...decor] : null)
       ),
+      objects: [...this.objects],
     };
   }
 }
