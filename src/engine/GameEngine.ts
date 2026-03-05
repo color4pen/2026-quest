@@ -403,17 +403,17 @@ export class GameEngine {
       const member = this.party.getMemberById(definition.id);
       if (!member) continue;
 
-      member.restoreState(
-        memberData.hp,
-        memberData.mp,
-        memberData.level,
-        memberData.xp,
-        memberData.xpToNext,
-        memberData.baseMaxHp,
-        memberData.baseMaxMp,
-        memberData.baseAttack,
-        memberData.baseDefense
-      );
+      member.restoreState({
+        hp: memberData.hp,
+        mp: memberData.mp,
+        level: memberData.level,
+        xp: memberData.xp,
+        xpToNext: memberData.xpToNext,
+        baseMaxHp: memberData.baseMaxHp,
+        baseMaxMp: memberData.baseMaxMp,
+        baseAttack: memberData.baseAttack,
+        baseDefense: memberData.baseDefense,
+      });
 
       if (memberData.equipment.weapon) this.party.equipItem(member.id, memberData.equipment.weapon);
       if (memberData.equipment.armor) this.party.equipItem(member.id, memberData.equipment.armor);

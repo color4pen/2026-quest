@@ -129,3 +129,16 @@ export const DEFAULT_LEVEL_UP_BONUS = {
   attack: 5,
   xpMultiplier: 1.5,
 } as const;
+
+// パーティーメンバーの復元用スナップショット
+export interface PartyMemberSnapshot {
+  hp: number;
+  mp: number;
+  level: number;
+  xp: number;
+  xpToNext: number;
+  baseMaxHp: number;
+  baseMaxMp: number;
+  baseAttack: number;
+  baseDefense: number;
+}

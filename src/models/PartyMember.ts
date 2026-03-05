@@ -3,6 +3,7 @@ import {
   PartyMemberClass,
   PartyMemberDefinition,
   PartyMemberState,
+  PartyMemberSnapshot,
   EquipmentSlot,
 } from '../types/party';
 import type { StatusEffectType, StatusEffectInfo } from '../types/statusEffect';
@@ -378,22 +379,12 @@ export class PartyMember implements Combatant {
   /**
    * セーブデータから状態を復元
    */
-  restoreState(
-    hp: number,
-    mp: number,
-    level: number,
-    xp: number,
-    xpToNext: number,
-    baseMaxHp: number,
-    baseMaxMp: number,
-    baseAttack: number,
-    baseDefense: number
-  ): void {
-    this._hp = HitPoints.of(hp, baseMaxHp);
-    this._mp = ManaPoints.of(mp, baseMaxMp);
-    this.experience.restoreState(level, xp, xpToNext);
-    this._attack = baseAttack;
-    this._baseDefense = baseDefense;
+  restoreState(snapshot: PartyMemberSnapshot): void {
+    this._hp = HitPoints.of(snapshot.hp, snapshot.baseMaxHp);
+    this._mp = ManaPoints.of(snapshot.mp, snapshot.baseMaxMp);
+    this.experience.restoreState(snapshot.level, snapshot.xp, snapshot.xpToNext);
+    this._attack = snapshot.baseAttack;
+    this._baseDefense = snapshot.baseDefense;
   }
 
   // ==================== Rich Domain Model ====================
