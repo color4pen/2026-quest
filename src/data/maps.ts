@@ -214,22 +214,23 @@ export const MAP_FIELD: MapDefinition = {
 
 /**
  * キャンプ場マップ（エンカウントなし、休息エリア）
+ * 奥に湖があり、その中央に鳥居がある緑豊かなキャンプ場
  */
 export const MAP_CAMPSITE: MapDefinition = {
   id: 'campsite',
   name: 'キャンプ場',
   playerStart: { x: 10, y: 12 },  // 車の前からスタート
   tiles: [
-    // 20x15のマップ
+    // 20x15のマップ - 奥（上）に湖、手前（下）が緑のキャンプエリア
     [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T],
+    [T, G, G, W, W, W, W, W, W, W, W, W, W, W, W, W, W, G, G, T],
+    [T, G, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, G, T],
+    [T, G, W, W, W, W, W, W, W, G, G, W, W, W, W, W, W, W, G, T],
+    [T, G, W, W, W, W, W, W, W, G, G, W, W, W, W, W, W, W, G, T],
+    [T, G, G, W, W, W, W, W, W, W, W, W, W, W, W, W, W, G, G, T],
     [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
     [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
     [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
-    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
-    [T, G, G, G, G, A, A, A, A, A, A, A, A, A, G, G, G, G, G, T],
-    [T, G, G, G, G, A, A, A, A, A, A, A, A, A, G, G, G, G, G, T],
-    [T, G, G, G, G, A, A, A, A, A, A, A, A, A, G, G, G, G, G, T],
-    [T, G, G, G, G, A, A, A, A, A, A, A, A, A, G, G, G, G, G, T],
     [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
     [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
     [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
@@ -238,6 +239,16 @@ export const MAP_CAMPSITE: MapDefinition = {
     [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T],
   ],
   objects: [
+    // 鳥居（湖の中央）
+    {
+      id: 'torii',
+      x: 9,
+      y: 3,
+      image: 'torii',
+      width: 2,
+      height: 2,
+      walkable: false,  // 通行不可（湖の中）
+    },
     // 車オブジェクト（フィールドへ戻る）
     {
       id: 'car_to_field',
@@ -251,7 +262,7 @@ export const MAP_CAMPSITE: MapDefinition = {
     },
   ],
   treasures: [
-    { x: 9, y: 6, gold: 75 },  // キャンプ場中央
+    { x: 4, y: 8, gold: 75 },  // キャンプ場の草地
   ],
   warps: [],
   // エンカウントなし（キャンプ場は安全）

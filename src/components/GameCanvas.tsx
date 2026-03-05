@@ -328,6 +328,29 @@ function drawObjects(
         ctx.fillRect(px + pw - 8, py + 14, 4, 4);
         break;
 
+      case 'torii':
+        // 鳥居（2x2タイル、湖の中に立つ赤い鳥居）
+        // 背景（水）
+        ctx.fillStyle = '#4a90e2';
+        ctx.fillRect(px, py, pw, ph);
+        // 柱（左右）
+        ctx.fillStyle = '#c41e3a';
+        ctx.fillRect(px + 8, py + 16, 8, ph - 16);   // 左柱
+        ctx.fillRect(px + pw - 16, py + 16, 8, ph - 16); // 右柱
+        // 笠木（上の横棒）
+        ctx.fillStyle = '#8b0000';
+        ctx.fillRect(px + 2, py + 8, pw - 4, 10);
+        // 島木（笠木の下の横棒）
+        ctx.fillStyle = '#c41e3a';
+        ctx.fillRect(px + 6, py + 20, pw - 12, 6);
+        // 貫（中央の横棒）
+        ctx.fillRect(px + 10, py + 36, pw - 20, 5);
+        // 笠木の反り（装飾）
+        ctx.fillStyle = '#8b0000';
+        ctx.fillRect(px, py + 6, 6, 6);
+        ctx.fillRect(px + pw - 6, py + 6, 6, 6);
+        break;
+
       default:
         // 未知のオブジェクト（デバッグ用）
         ctx.fillStyle = '#ff00ff';
