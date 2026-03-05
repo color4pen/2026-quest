@@ -11,6 +11,8 @@ export type { InventoryEntry, InventoryState } from './Inventory';
 export { Enemy } from './Enemy';
 export type { EnemyState } from './Enemy';
 
+export { EnemyFactory } from './EnemyFactory';
+
 export { Treasure } from './Treasure';
 export type { TreasureState } from './Treasure';
 

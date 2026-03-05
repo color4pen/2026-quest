@@ -4,12 +4,13 @@ import {
   FixedEnemyPlacement,
   WarpPoint,
 } from '../types/game';
-import { ENEMY_TEMPLATES } from '../data/enemyTemplates';
+import { getEnemyTemplateByName } from '../data/enemyTemplates';
 import { Party } from '../models';
 import { NPC_DEFINITIONS } from '../data/npcDefinitions';
 import { SavedTreasureData } from '../types/save';
 import {
   Enemy,
+  EnemyFactory,
   Treasure,
   GameMap,
   GameMapState,
@@ -142,8 +143,12 @@ export class MapManager {
     return mapDef.fixedEnemies
       .filter(fe => this.checkSpawnCondition(fe.spawnCondition, getGameProgress))
       .map(fe => {
-        const template = ENEMY_TEMPLATES.find(t => t.name === fe.templateName);
-        return new Enemy(fe.x, fe.y, leaderLevel, template);
+        const template = getEnemyTemplateByName(fe.templateName);
+        if (!template) {
+          console.warn(`Fixed enemy template not found: ${fe.templateName}`);
+          return EnemyFactory.createRandom(fe.x, fe.y, leaderLevel);
+        }
+        return EnemyFactory.createFromTemplate(fe.x, fe.y, template, leaderLevel);
       });
   }
 

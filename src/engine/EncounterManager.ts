@@ -1,6 +1,5 @@
 import { EncounterConfig } from '../types/game';
-import { ENEMY_TEMPLATES } from '../data/enemyTemplates';
-import { Enemy } from '../models';
+import { Enemy, EnemyFactory } from '../models';
 
 export class EncounterManager {
   /**
@@ -34,9 +33,7 @@ export class EncounterManager {
     const enemies: Enemy[] = [];
 
     for (let i = 0; i < count; i++) {
-      const enemyName = enemyIds[Math.floor(Math.random() * enemyIds.length)];
-      const template = ENEMY_TEMPLATES.find(t => t.name === enemyName);
-      enemies.push(new Enemy(0, 0, leaderLevel, template));
+      enemies.push(EnemyFactory.createFromCandidates(0, 0, enemyIds, leaderLevel));
     }
 
     return enemies;
