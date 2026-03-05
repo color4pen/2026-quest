@@ -354,19 +354,71 @@ function drawObjects(
         break;
 
       case 'tent':
-        // テント（3x3タイル、スプライトシートから切り出し）
+        // テント（5x5タイル、スプライトシートから切り出し）
         // 背景（草地）
         ctx.fillStyle = '#4a7c59';
         ctx.fillRect(px, py, pw, ph);
         if (tentImage) {
-          // スプライトシートからテント部分を切り出し（右上のテント）
-          // ソース: x=352, y=0, 幅=96, 高さ=112
+          // スプライトシートからテント部分を切り出し（入口が見える大きいテント）
+          // ソース: x=256, y=0, 幅=160, 高さ=160 (5x5ブロック)
           ctx.drawImage(
             tentImage,
-            352, 0, 96, 112,   // ソース領域（テント本体のみ）
-            px, py, pw, ph     // 描画先
+            256, 0, 160, 160,   // ソース領域（入口付きテント）
+            px, py, pw, ph      // 描画先
           );
         }
+        break;
+
+      case 'campfire':
+        // 焚き火（2x2タイル）
+        ctx.fillStyle = '#6b6b7a';
+        ctx.fillRect(px, py, pw, ph);
+        // 火の土台（石）
+        ctx.fillStyle = '#555555';
+        ctx.beginPath();
+        ctx.arc(px + pw / 2, py + ph / 2 + 8, 20, 0, Math.PI * 2);
+        ctx.fill();
+        // 炎
+        ctx.fillStyle = '#ff6600';
+        ctx.beginPath();
+        ctx.moveTo(px + pw / 2, py + 8);
+        ctx.lineTo(px + pw / 2 - 12, py + ph / 2 + 8);
+        ctx.lineTo(px + pw / 2 + 12, py + ph / 2 + 8);
+        ctx.fill();
+        ctx.fillStyle = '#ffcc00';
+        ctx.beginPath();
+        ctx.moveTo(px + pw / 2, py + 16);
+        ctx.lineTo(px + pw / 2 - 6, py + ph / 2 + 4);
+        ctx.lineTo(px + pw / 2 + 6, py + ph / 2 + 4);
+        ctx.fill();
+        break;
+
+      case 'stove':
+        // ストーブ（1x1タイル）
+        ctx.fillStyle = '#6b6b7a';
+        ctx.fillRect(px, py, pw, ph);
+        // ストーブ本体
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(px + 4, py + 8, pw - 8, ph - 12);
+        // 上部
+        ctx.fillStyle = '#444444';
+        ctx.fillRect(px + 2, py + 4, pw - 4, 8);
+        // 炎窓
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(px + 8, py + 16, pw - 16, 8);
+        break;
+
+      case 'table':
+        // テーブル（2x1タイル）
+        ctx.fillStyle = '#6b6b7a';
+        ctx.fillRect(px, py, pw, ph);
+        // テーブル天板
+        ctx.fillStyle = '#8b5a2b';
+        ctx.fillRect(px + 2, py + 8, pw - 4, 12);
+        // 脚
+        ctx.fillStyle = '#6b4423';
+        ctx.fillRect(px + 6, py + 20, 6, 8);
+        ctx.fillRect(px + pw - 12, py + 20, 6, 8);
         break;
 
       default:
