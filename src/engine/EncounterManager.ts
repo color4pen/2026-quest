@@ -1,4 +1,5 @@
-import { ENEMY_TEMPLATES, EncounterConfig } from '../types/game';
+import { EncounterConfig } from '../types/game';
+import { ENEMY_TEMPLATES } from '../data/enemyTemplates';
 import { Enemy } from '../models';
 
 export class EncounterManager {
