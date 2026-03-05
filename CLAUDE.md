@@ -9,3 +9,20 @@
 - テストファイルは対象ファイルと同じディレクトリに `*.test.ts` として配置
 - 型定義は `src/types/` に集約
 - Actionクラスは `src/models/actions/` に配置
+
+## レビュー
+- レビュー時は `docs/reviews/REVIEW_GUIDELINES.md` の観点を参照
+- 過去のレビュー履歴は `docs/reviews/YYYYMMDD-{機能名}.md` を参照
+- レビュー完了後は履歴を `docs/reviews/` に保存
+- レビューは設計と実装でディレクトリを分けて記録:
+  - 設計レビュー: `docs/reviews/design/YYYYMMDD-{機能名}.md`
+  - 実装レビュー: `docs/reviews/impl/YYYYMMDD-{機能名}.md`
+- 設計レビューで指摘があれば `design/` に履歴を作成
+- 実装レビュー（PRレビュー）で指摘があれば `impl/` に履歴を作成
+- **レビュー指摘で新しい観点が追加された場合は `REVIEW_GUIDELINES.md` も更新すること**
+
+## 技術的意思決定（ADR）
+- 「後から"なぜこうしたの？"と聞かれそうな判断」は `docs/decisions/` に記録
+- フォーマット: ADR（Architecture Decision Records）
+- 必須セクション: コンテキスト、決定、検討した代替案、結果
+- ADR一覧は `docs/decisions/README.md` を参照
