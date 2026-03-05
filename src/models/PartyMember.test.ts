@@ -189,7 +189,17 @@ describe('PartyMember', () => {
   describe('セーブデータからの復元', () => {
     it('restoreState で全ステータスが復元される', () => {
       const member = new PartyMember(createTestMemberDef());
-      member.restoreState(50, 20, 5, 30, 200, 200, 60, 30, 10);
+      member.restoreState({
+        hp: 50,
+        mp: 20,
+        level: 5,
+        xp: 30,
+        xpToNext: 200,
+        baseMaxHp: 200,
+        baseMaxMp: 60,
+        baseAttack: 30,
+        baseDefense: 10,
+      });
 
       expect(member.hp).toBe(50);
       expect(member.mp).toBe(20);
