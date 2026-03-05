@@ -360,11 +360,11 @@ function drawObjects(
         ctx.fillRect(px, py, pw, ph);
         if (tentImage) {
           // スプライトシートからテント部分を切り出し（右上のテント）
-          // ソース: x=288, y=0, 幅=96, 高さ=96
+          // ソース: x=320, y=0, 幅=128, 高さ=128
           ctx.drawImage(
             tentImage,
-            288, 0, 96, 96,  // ソース領域
-            px, py, pw, ph   // 描画先
+            320, 0, 128, 128,  // ソース領域
+            px, py, pw, ph     // 描画先
           );
         }
         break;
