@@ -24,17 +24,24 @@
 
 **対応**: PR #10 で `PartyMemberSnapshot` 型を導入。
 
-### 4. ユビキタス言語の不統一（推奨修正）🔄 対応中
+### 4. ユビキタス言語の不統一（推奨修正）✅ 対応済み
 
 以下の命名が揺れている：
 - `PartyMemberDefinition` → `PartyMemberTemplate`
-- `PartyMemberState` → `PartyMemberView`
+- ~~`PartyMemberState` → `PartyMemberView`~~ （`getState()` パターンとの一貫性のためスキップ）
 - `GameStateManager` → `GameProgressManager`
 
-**対応**: 設計ドキュメント作成済み、承認待ち。
+**対応**: PR #11 でリネーム完了。設計レビュー: `docs/reviews/design/20260305-ubiquitous-language.md`
 
-### 5. GameEntity.nextId の静的カウンター（軽微）
+### 5. GameEntity.nextId の静的カウンター（軽微）📝 今後の課題
 
 ID生成が静的カウンターで、テスト間で状態が共有される可能性。
 
 **対応**: 今後の課題として認識。
+
+### 6. Enemy の生成ロジックに責務が混在（推奨修正）✅ 対応済み
+
+Enemy クラスのコンストラクタ内でランダムテンプレート選択とステータス計算が行われている。
+エンティティのコンストラクタは確定した値を受け取るべき。
+
+**対応**: PR #12 で EnemyFactory を導入。設計レビュー: `docs/reviews/design/20260306-enemy-factory.md`
