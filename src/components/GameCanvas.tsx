@@ -369,6 +369,10 @@ function drawObjects(
         }
         break;
 
+      case 'none':
+        // 描画しない（他のオブジェクトで描画済み）
+        break;
+
       case 'campfire':
         // 焚き火（2x2タイル）
         ctx.fillStyle = '#6b6b7a';
