@@ -314,7 +314,7 @@ export const NPC_DEFINITIONS: NPCDefinition[] = [
         {
           id: 'start',
           speaker: 'キャンパー',
-          text: 'いやー、焚き火の前でのんびりするのは最高だね！',
+          text: 'いやー、焚き火の前でのんびりするのは最高だね！ここにいると仕事を忘れられるよ。',
           choices: [
             { id: 'bye', text: 'そうだね', action: { type: 'close' } },
           ],

@@ -330,6 +330,32 @@ function drawObjects(
         ctx.fillRect(px + pw - 8, py + 14, 4, 4);
         break;
 
+      case 'car_gray':
+        // 車（灰色、2x1タイル）
+        // 背景（草地）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // 車体（灰色）
+        ctx.fillStyle = '#6a6a6a';
+        ctx.fillRect(px + 4, py + 8, pw - 8, ph - 12);
+        // 屋根
+        ctx.fillStyle = '#5a5a5a';
+        ctx.fillRect(px + 16, py + 4, 24, 12);
+        // 窓
+        ctx.fillStyle = '#87ceeb';
+        ctx.fillRect(px + 18, py + 6, 8, 8);
+        ctx.fillRect(px + 28, py + 6, 8, 8);
+        // タイヤ
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.arc(px + 14, py + 26, 5, 0, Math.PI * 2);
+        ctx.arc(px + 50, py + 26, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // ヘッドライト
+        ctx.fillStyle = '#ffff88';
+        ctx.fillRect(px + pw - 8, py + 14, 4, 4);
+        break;
+
       case 'torii':
         // 鳥居（2x2タイル、湖の中に立つ赤い鳥居）
         // 背景（水）
@@ -399,7 +425,7 @@ function drawObjects(
 
       case 'stove':
         // ストーブ（1x1タイル）
-        ctx.fillStyle = '#6b6b7a';
+        ctx.fillStyle = '#4a7c59';
         ctx.fillRect(px, py, pw, ph);
         // ストーブ本体
         ctx.fillStyle = '#333333';
@@ -412,9 +438,32 @@ function drawObjects(
         ctx.fillRect(px + 8, py + 16, pw - 16, 8);
         break;
 
+      case 'stove_cylinder':
+        // 円柱ストーブ（1x1タイル）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // 煙突
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(px + 12, py + 2, 8, 10);
+        // 円柱本体
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.ellipse(px + pw / 2, py + ph - 8, 12, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(px + 4, py + 10, 24, ph - 18);
+        // 上部（楕円）
+        ctx.fillStyle = '#333333';
+        ctx.beginPath();
+        ctx.ellipse(px + pw / 2, py + 10, 12, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // 炎窓
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(px + 10, py + 16, 12, 6);
+        break;
+
       case 'table':
         // テーブル（2x1タイル）
-        ctx.fillStyle = '#6b6b7a';
+        ctx.fillStyle = '#4a7c59';
         ctx.fillRect(px, py, pw, ph);
         // テーブル天板
         ctx.fillStyle = '#8b5a2b';
@@ -423,6 +472,32 @@ function drawObjects(
         ctx.fillStyle = '#6b4423';
         ctx.fillRect(px + 6, py + 20, 6, 8);
         ctx.fillRect(px + pw - 12, py + 20, 6, 8);
+        break;
+
+      case 'montbell_chair':
+        // モンベルの椅子（1x1タイル、青いアウトドアチェア）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // 脚（X型フレーム）
+        ctx.fillStyle = '#333333';
+        ctx.beginPath();
+        ctx.moveTo(px + 6, py + 28);
+        ctx.lineTo(px + 26, py + 12);
+        ctx.lineTo(px + 28, py + 14);
+        ctx.lineTo(px + 8, py + 30);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px + 26, py + 28);
+        ctx.lineTo(px + 6, py + 12);
+        ctx.lineTo(px + 4, py + 14);
+        ctx.lineTo(px + 24, py + 30);
+        ctx.fill();
+        // 座面（青）
+        ctx.fillStyle = '#0066cc';
+        ctx.fillRect(px + 4, py + 10, 24, 10);
+        // 背もたれ（青）
+        ctx.fillStyle = '#004499';
+        ctx.fillRect(px + 6, py + 4, 20, 8);
         break;
 
       default:
