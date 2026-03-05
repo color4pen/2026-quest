@@ -3,8 +3,8 @@ import {
   Position,
   FixedEnemyPlacement,
   WarpPoint,
-  ENEMY_TEMPLATES,
 } from '../types/game';
+import { ENEMY_TEMPLATES } from '../data/enemyTemplates';
 import { Party } from '../models';
 import { NPC_DEFINITIONS } from '../data/npcDefinitions';
 import { SavedTreasureData } from '../types/save';

@@ -4,8 +4,8 @@ import {
   MAP_WIDTH,
   MAP_HEIGHT,
   EnemyBattleConfig,
-  ENEMY_TEMPLATES,
 } from '../types/game';
+import { ENEMY_TEMPLATES } from '../data/enemyTemplates';
 import {
   GameEntity,
   GameEntityState,
