@@ -5,6 +5,7 @@
 
 import {
   SaveData,
+  SignedSaveData,
   SaveSlotInfo,
   SavedMemberData,
   SavedTreasureData,
@@ -12,6 +13,7 @@ import {
   SAVE_SLOT_KEY_PREFIX,
   MAX_SAVE_SLOTS,
 } from '../types/save';
+import { sign, verify } from './integrity';
 import { GameEngineState } from '../engine/GameEngine';
 import { PartyMemberState } from '../types/party';
 import { MAPS } from '../data/maps';
@@ -20,17 +22,20 @@ import { getPartyMemberDefinition } from '../data/partyMembers';
 export class SaveManager {
   /**
    * 全セーブスロットの情報を取得（UI表示用）
+   * 署名検証は行わない（改ざんされていても一覧には表示する）
    */
   static getSaveSlots(): SaveSlotInfo[] {
     const slots: SaveSlotInfo[] = [];
 
     for (let i = 0; i < MAX_SAVE_SLOTS; i++) {
       const key = `${SAVE_SLOT_KEY_PREFIX}${i}`;
-      const data = localStorage.getItem(key);
+      const rawData = localStorage.getItem(key);
 
-      if (data) {
+      if (rawData) {
         try {
-          const saveData: SaveData = JSON.parse(data);
+          const parsed = JSON.parse(rawData);
+          // 新フォーマット（署名付き）か旧フォーマットかを判定
+          const saveData: SaveData = this.isSignedFormat(parsed) ? parsed.payload : parsed;
           const leader = saveData.party.members[0];
           slots.push({
             slotId: i,
@@ -52,7 +57,7 @@ export class SaveManager {
   }
 
   /**
-   * ゲームをセーブ
+   * ゲームをセーブ（署名付き）
    */
   static save(
     slotId: number,
@@ -69,7 +74,13 @@ export class SaveManager {
     try {
       const saveData = this.createSaveData(state, currentMapId, treasureStatesCache, gameState);
       const key = `${SAVE_SLOT_KEY_PREFIX}${slotId}`;
-      localStorage.setItem(key, JSON.stringify(saveData));
+      // 署名付きフォーマットで保存
+      const payloadJson = JSON.stringify(saveData);
+      const signedData: SignedSaveData = {
+        payload: saveData,
+        signature: sign(payloadJson),
+      };
+      localStorage.setItem(key, JSON.stringify(signedData));
       return true;
     } catch (error) {
       console.error('Save failed:', error);
@@ -78,7 +89,8 @@ export class SaveManager {
   }
 
   /**
-   * セーブデータをロード
+   * セーブデータをロード（署名検証付き）
+   * 改ざんが検出された場合はnullを返す
    */
   static load(slotId: number): SaveData | null {
     if (slotId < 0 || slotId >= MAX_SAVE_SLOTS) {
@@ -88,11 +100,27 @@ export class SaveManager {
 
     try {
       const key = `${SAVE_SLOT_KEY_PREFIX}${slotId}`;
-      const data = localStorage.getItem(key);
+      const rawData = localStorage.getItem(key);
 
-      if (!data) return null;
+      if (!rawData) return null;
 
-      const saveData: SaveData = JSON.parse(data);
+      const parsed = JSON.parse(rawData);
+
+      let saveData: SaveData;
+
+      if (this.isSignedFormat(parsed)) {
+        // 新フォーマット: 署名を検証
+        const payloadJson = JSON.stringify(parsed.payload);
+        if (!verify(payloadJson, parsed.signature)) {
+          console.error('Save data integrity check failed: data may have been tampered with');
+          return null;
+        }
+        saveData = parsed.payload;
+      } else {
+        // 旧フォーマット: 署名なし → マイグレーション（再署名して保存）
+        saveData = parsed as SaveData;
+        this.migrateToSignedFormat(slotId, saveData);
+      }
 
       // バージョン移行が必要な場合
       if (saveData.version !== SAVE_VERSION) {
@@ -219,5 +247,36 @@ export class SaveManager {
     // 将来のバージョン移行処理をここに追加
     // 現時点ではバージョンを更新するのみ
     return { ...saveData, version: SAVE_VERSION };
+  }
+
+  /**
+   * 署名付きフォーマットかどうかを判定
+   */
+  private static isSignedFormat(data: unknown): data is SignedSaveData {
+    return (
+      typeof data === 'object' &&
+      data !== null &&
+      'payload' in data &&
+      'signature' in data &&
+      typeof (data as SignedSaveData).signature === 'string'
+    );
+  }
+
+  /**
+   * 旧フォーマットのデータを署名付きフォーマットに移行
+   */
+  private static migrateToSignedFormat(slotId: number, saveData: SaveData): void {
+    try {
+      const key = `${SAVE_SLOT_KEY_PREFIX}${slotId}`;
+      const payloadJson = JSON.stringify(saveData);
+      const signedData: SignedSaveData = {
+        payload: saveData,
+        signature: sign(payloadJson),
+      };
+      localStorage.setItem(key, JSON.stringify(signedData));
+      console.log(`Migrated save slot ${slotId} to signed format`);
+    } catch (error) {
+      console.error('Failed to migrate save data to signed format:', error);
+    }
   }
 }
