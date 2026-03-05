@@ -74,8 +74,8 @@ export interface PartyMemberBaseStats {
   attack: number;
 }
 
-// パーティーメンバー定義（キャラクターテンプレート）
-export interface PartyMemberDefinition {
+// パーティーメンバーテンプレート（キャラクター生成用）
+export interface PartyMemberTemplate {
   id: string;
   name: string;
   class: PartyMemberClass;

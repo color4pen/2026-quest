@@ -11,8 +11,8 @@ import { NPC } from '../models/NPC';
 
 export type DialogueEventListener = (state: DialogueState) => void;
 export type ShopEventListener = (state: ShopState) => void;
-export type GameStateGetter = (key: string) => number;
-export type GameStateSetter = (key: string, value: number) => void;
+export type GameProgressGetter = (key: string) => number;
+export type GameProgressSetter = (key: string, value: number) => void;
 
 export interface DialogueResult {
   action: DialogueAction;
@@ -29,15 +29,15 @@ export class DialogueEngine {
   private onDialogueEnd: (() => void) | null;
   private onOpenShop: ((npc: NPC) => void) | null;
   private onHeal: ((cost: number) => boolean) | null;
-  private onSetState: GameStateSetter | null;
+  private onSetState: GameProgressSetter | null;
   private onGiveItem: ((item: ItemDefinitionData, quantity: number) => void) | null;
 
-  // ゲーム状態取得
-  private getGameState: GameStateGetter;
+  // ゲーム進行状態取得
+  private getGameProgress: GameProgressGetter;
 
-  constructor(npc: NPC, getGameState?: GameStateGetter) {
+  constructor(npc: NPC, getGameProgress?: GameProgressGetter) {
     this.npc = npc;
-    this.getGameState = getGameState ?? (() => 0);
+    this.getGameProgress = getGameProgress ?? (() => 0);
     this.isComplete = false;
     this.listeners = new Set();
     this.onDialogueEnd = null;
@@ -79,7 +79,7 @@ export class DialogueEngine {
    * 単一の条件をチェック
    */
   private checkCondition(cond: StateCondition): boolean {
-    const value = this.getGameState(cond.key);
+    const value = this.getGameProgress(cond.key);
 
     switch (cond.op) {
       case '==': return value === cond.value;
@@ -99,7 +99,7 @@ export class DialogueEngine {
     onDialogueEnd?: () => void;
     onOpenShop?: (npc: NPC) => void;
     onHeal?: (cost: number) => boolean;
-    onSetState?: GameStateSetter;
+    onSetState?: GameProgressSetter;
     onGiveItem?: (item: ItemDefinitionData, quantity: number) => void;
   }): void {
     this.onDialogueEnd = callbacks.onDialogueEnd ?? null;

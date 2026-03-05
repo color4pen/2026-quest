@@ -1,10 +1,10 @@
 import { StatusEffectManager } from './StatusEffectManager';
 import { PartyMember } from '../PartyMember';
-import { PartyMemberDefinition } from '../../types/party';
+import { PartyMemberTemplate } from '../../types/party';
 
 describe('StatusEffectManager', () => {
   function createMember(hp?: number): PartyMember {
-    const definition: PartyMemberDefinition = {
+    const definition: PartyMemberTemplate = {
       id: 'test',
       name: 'テスト',
       class: 'warrior',

@@ -1,5 +1,5 @@
 import { MessageType } from '../../types/game';
-import { PartyMemberDefinition } from '../../types/party';
+import { PartyMemberTemplate } from '../../types/party';
 import { Party } from '../../models';
 
 export interface PartyCallbacks {
@@ -24,7 +24,7 @@ export class PartyController {
   /**
    * 仲間を追加
    */
-  public recruitMember(definition: PartyMemberDefinition): boolean {
+  public recruitMember(definition: PartyMemberTemplate): boolean {
     if (this.party.isFull()) {
       this.callbacks.addMessage('パーティーは満員だ！', 'normal');
       this.callbacks.notifyListeners();

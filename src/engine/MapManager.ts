@@ -50,7 +50,7 @@ export class MapManager {
     options?: {
       skipCache?: boolean;
       leaderLevel?: number;
-      getGameState?: (key: string) => number;
+      getGameProgress?: (key: string) => number;
     }
   ): MapLoadResult | null {
     const mapDef = MAPS[mapId];
@@ -61,7 +61,7 @@ export class MapManager {
 
     const skipCache = options?.skipCache ?? false;
     const leaderLevel = options?.leaderLevel ?? 1;
-    const getGameState = options?.getGameState;
+    const getGameProgress = options?.getGameProgress;
 
     // マップ切り替え前に現在のマップの宝箱状態をキャッシュ
     if (!skipCache && this.currentMapId && this.treasures.length > 0) {
@@ -95,7 +95,7 @@ export class MapManager {
     this.applyTreasureStates();
 
     // 固定敵を配置
-    this.fixedEnemies = this.spawnFixedEnemies(mapDef, leaderLevel, getGameState);
+    this.fixedEnemies = this.spawnFixedEnemies(mapDef, leaderLevel, getGameProgress);
 
     const startX = playerX ?? mapDef.playerStart.x;
     const startY = playerY ?? mapDef.playerStart.y;
@@ -135,12 +135,12 @@ export class MapManager {
   private spawnFixedEnemies(
     mapDef: MapDefinition,
     leaderLevel: number,
-    getGameState?: (key: string) => number
+    getGameProgress?: (key: string) => number
   ): Enemy[] {
     if (!mapDef.fixedEnemies) return [];
 
     return mapDef.fixedEnemies
-      .filter(fe => this.checkSpawnCondition(fe.spawnCondition, getGameState))
+      .filter(fe => this.checkSpawnCondition(fe.spawnCondition, getGameProgress))
       .map(fe => {
         const template = ENEMY_TEMPLATES.find(t => t.name === fe.templateName);
         return new Enemy(fe.x, fe.y, leaderLevel, template);
@@ -152,12 +152,12 @@ export class MapManager {
    */
   private checkSpawnCondition(
     cond?: FixedEnemyPlacement['spawnCondition'],
-    getGameState?: (key: string) => number
+    getGameProgress?: (key: string) => number
   ): boolean {
     if (!cond) return true;
-    if (!getGameState) return true;
+    if (!getGameProgress) return true;
 
-    const value = getGameState(cond.key);
+    const value = getGameProgress(cond.key);
 
     switch (cond.op) {
       case '<':  return value < cond.value;

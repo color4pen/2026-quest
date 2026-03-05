@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { SaveSlotInfo } from '../types/save';
-import { getPartyMemberDefinition } from '../data/partyMembers';
+import { getPartyMemberTemplate } from '../data/partyMembers';
 import './SaveLoadModal.css';
 
 type MenuMode = 'save' | 'load';
@@ -36,7 +36,7 @@ export function SaveLoadModal({ mode, slots, onSelectSlot, onClose, fullscreen =
 
   const getLeaderDisplayName = (leaderId: string | null): string => {
     if (!leaderId) return '---';
-    const definition = getPartyMemberDefinition(leaderId);
+    const definition = getPartyMemberTemplate(leaderId);
     return definition?.name ?? leaderId;
   };
 

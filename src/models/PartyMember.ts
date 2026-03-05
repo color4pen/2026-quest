@@ -1,7 +1,7 @@
 import { SkillDefinition } from '../types/game';
 import {
   PartyMemberClass,
-  PartyMemberDefinition,
+  PartyMemberTemplate,
   PartyMemberState,
   PartyMemberSnapshot,
   EquipmentSlot,
@@ -52,22 +52,22 @@ export class PartyMember implements Combatant {
   // 状態異常管理
   private readonly statusEffects: StatusEffectManager = new StatusEffectManager();
 
-  constructor(definition: PartyMemberDefinition) {
-    this.id = definition.id;
-    this.name = definition.name;
-    this.memberClass = definition.class;
-    this.image = definition.image;
+  constructor(template: PartyMemberTemplate) {
+    this.id = template.id;
+    this.name = template.name;
+    this.memberClass = template.class;
+    this.image = template.image;
 
     // HP/MP を値オブジェクトで初期化
-    this._hp = HitPoints.create(definition.baseStats.maxHp);
-    this._mp = ManaPoints.create(definition.baseStats.maxMp);
-    this._attack = definition.baseStats.attack;
+    this._hp = HitPoints.create(template.baseStats.maxHp);
+    this._mp = ManaPoints.create(template.baseStats.maxMp);
+    this._attack = template.baseStats.attack;
 
     // スキル
-    this._skills = [...definition.skills];
+    this._skills = [...template.skills];
 
     // 経験値・レベル管理
-    this.experience = new ExperienceManager(definition.levelUpBonus);
+    this.experience = new ExperienceManager(template.levelUpBonus);
   }
 
   // ==================== getter ====================

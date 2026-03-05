@@ -16,8 +16,8 @@ export type GameCommand =
   | { type: 'spendGold'; amount: number }
   // 経験値
   | { type: 'distributeXp'; xp: number }
-  // ゲーム状態フラグ
-  | { type: 'setGameState'; key: StateKey; value: number }
+  // ゲーム進行フラグ
+  | { type: 'setGameProgress'; key: StateKey; value: number }
   // アイテム
   | { type: 'addItem'; itemId: string; quantity: number }
   // パーティ

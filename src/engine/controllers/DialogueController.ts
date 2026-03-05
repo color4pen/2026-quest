@@ -6,8 +6,8 @@ import { GameCommand } from '../calculators/types';
 import { calculateHealCommands } from '../calculators/DialogueCalculator';
 
 export interface DialogueCallbacks {
-  getGameState: (key: StateKey) => number;
-  setGameState: (key: StateKey, value: number) => void;
+  getGameProgress: (key: StateKey) => number;
+  setGameProgress: (key: StateKey, value: number) => void;
   executeCommands: (commands: GameCommand[]) => void;
   addMessage: (text: string, type: MessageType) => void;
   onDialogueStart: (engine: DialogueEngine) => void;
@@ -32,8 +32,8 @@ export class DialogueController {
    * 会話を開始
    */
   public start(npc: NPC): void {
-    const getGameState = (key: string) => this.callbacks.getGameState(key as StateKey);
-    this.engine = new DialogueEngine(npc, getGameState);
+    const getGameProgress = (key: string) => this.callbacks.getGameProgress(key as StateKey);
+    this.engine = new DialogueEngine(npc, getGameProgress);
 
     this.engine.setCallbacks({
       onDialogueEnd: () => {
@@ -49,7 +49,7 @@ export class DialogueController {
         return this.handleHeal(cost);
       },
       onSetState: (key: string, value: number) => {
-        this.callbacks.setGameState(key as StateKey, value);
+        this.callbacks.setGameProgress(key as StateKey, value);
         this.callbacks.markDirty();
       },
       onGiveItem: (item: { id: string; name: string }, quantity: number) => {

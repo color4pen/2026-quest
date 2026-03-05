@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Direction, BattleCommand, SkillDefinition, DialogueChoice, ShopItem, PartyMemberDefinition, EquipmentSlot } from '../types/game';
+import { Direction, BattleCommand, SkillDefinition, DialogueChoice, ShopItem, PartyMemberTemplate, EquipmentSlot } from '../types/game';
 import { GameEngine, GameEngineState } from '../engine';
 import { RenderableEntity } from '../types/rendering';
 import { SaveManager } from '../services/SaveManager';
@@ -36,7 +36,7 @@ export interface PartyAPI {
   useFieldItem: (itemId: string, targetMemberId?: string) => { success: boolean; message: string };
   equipItem: (memberId: string, itemId: string) => { success: boolean; message: string };
   unequipItem: (memberId: string, slot: EquipmentSlot) => { success: boolean; message: string };
-  recruitMember: (definition: PartyMemberDefinition) => boolean;
+  recruitMember: (definition: PartyMemberTemplate) => boolean;
 }
 
 export interface SaveAPI {
@@ -97,7 +97,7 @@ export function useGameEngine(isPaused: boolean = false) {
     useFieldItem: (itemId: string, targetMemberId?: string) => engine.useFieldItem(itemId, targetMemberId),
     equipItem: (memberId: string, itemId: string) => engine.equipItem(memberId, itemId),
     unequipItem: (memberId: string, slot: EquipmentSlot) => engine.unequipItem(memberId, slot),
-    recruitMember: (definition: PartyMemberDefinition) => engine.recruitMember(definition),
+    recruitMember: (definition: PartyMemberTemplate) => engine.recruitMember(definition),
   }), [engine]);
 
   const save = useMemo<SaveAPI>(() => ({

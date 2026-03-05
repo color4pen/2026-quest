@@ -22,7 +22,7 @@ export type { NPCState } from './NPC';
 
 export { Door } from './Door';
 
-export { GameStateManager } from './GameStateManager';
+export { GameProgressManager } from './GameProgressManager';
 
 // 値オブジェクト
 export { HitPoints, ManaPoints, Gold, EquipmentStatBlock } from './values';
