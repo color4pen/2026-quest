@@ -302,6 +302,32 @@ function drawObjects(
         }
         break;
 
+      case 'car':
+        // 車（2x1タイル、プログラマティック描画）
+        // 背景（草地）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        // 車体（青）
+        ctx.fillStyle = '#3a5a8c';
+        ctx.fillRect(px + 4, py + 8, pw - 8, ph - 12);
+        // 屋根
+        ctx.fillStyle = '#2a4a7c';
+        ctx.fillRect(px + 16, py + 4, 24, 12);
+        // 窓
+        ctx.fillStyle = '#87ceeb';
+        ctx.fillRect(px + 18, py + 6, 8, 8);
+        ctx.fillRect(px + 28, py + 6, 8, 8);
+        // タイヤ
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.arc(px + 14, py + 26, 5, 0, Math.PI * 2);
+        ctx.arc(px + 50, py + 26, 5, 0, Math.PI * 2);
+        ctx.fill();
+        // ヘッドライト
+        ctx.fillStyle = '#ffff88';
+        ctx.fillRect(px + pw - 8, py + 14, 4, 4);
+        break;
+
       default:
         // 未知のオブジェクト（デバッグ用）
         ctx.fillStyle = '#ff00ff';

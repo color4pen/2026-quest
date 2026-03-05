@@ -184,6 +184,17 @@ export const MAP_FIELD: MapDefinition = {
       walkable: true,  // 通行可能（ワープする）
       warpTo: { mapId: 'dungeon', x: 10, y: 1 },
     },
+    // 車オブジェクト（キャンプ場へ）
+    {
+      id: 'car_to_campsite',
+      x: 28,
+      y: 5,
+      image: 'car',
+      width: 2,
+      height: 1,
+      walkable: true,
+      warpTo: { mapId: 'campsite', x: 10, y: 12 },
+    },
   ],
   treasures: [
     { x: 5, y: 5, gold: 30 },      // 左上の草地
@@ -199,6 +210,52 @@ export const MAP_FIELD: MapDefinition = {
     rate: 0.10,
     enemyIds: ['スライム', 'バット', 'ゴブリン', 'コボルト'],
   },
+};
+
+/**
+ * キャンプ場マップ（エンカウントなし、休息エリア）
+ */
+export const MAP_CAMPSITE: MapDefinition = {
+  id: 'campsite',
+  name: 'キャンプ場',
+  playerStart: { x: 10, y: 12 },  // 車の前からスタート
+  tiles: [
+    // 20x15のマップ
+    [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, A, A, A, A, A, A, A, A, A, G, G, G, G, G, T],
+    [T, G, G, G, G, A, A, A, A, A, A, A, A, A, G, G, G, G, G, T],
+    [T, G, G, G, G, A, A, A, A, A, A, A, A, A, G, G, G, G, G, T],
+    [T, G, G, G, G, A, A, A, A, A, A, A, A, A, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
+    [T, G, G, G, G, G, G, G, G, P, P, G, G, G, G, G, G, G, G, T],
+    [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T],
+  ],
+  objects: [
+    // 車オブジェクト（フィールドへ戻る）
+    {
+      id: 'car_to_field',
+      x: 9,
+      y: 13,
+      image: 'car',
+      width: 2,
+      height: 1,
+      walkable: true,
+      warpTo: { mapId: 'field', x: 29, y: 5 },  // フィールドの車の前に戻る
+    },
+  ],
+  treasures: [
+    { x: 9, y: 6, gold: 75 },  // キャンプ場中央
+  ],
+  warps: [],
+  // エンカウントなし（キャンプ場は安全）
+  encounter: undefined,
 };
 
 /**
@@ -253,6 +310,7 @@ export const MAP_DUNGEON: MapDefinition = {
 export const MAPS: Record<string, MapDefinition> = {
   village: MAP_VILLAGE,
   field: MAP_FIELD,
+  campsite: MAP_CAMPSITE,
   dungeon: MAP_DUNGEON,
 };
 
