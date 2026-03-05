@@ -1,6 +1,7 @@
 import { Direction, MessageType, VIEWPORT_WIDTH } from '../../types/game';
 import { Player, Party, Enemy, NPC } from '../../models';
-import { GameObject } from '../../components/game';
+import { GameEntity } from '../../models/base';
+import { RenderableEntity } from '../../types/rendering';
 import { MapManager } from '../MapManager';
 import { CameraManager } from '../CameraManager';
 import { EncounterManager } from '../EncounterManager';
@@ -129,7 +130,7 @@ export class ExplorationController {
   /**
    * 全てのInteractableオブジェクトを取得
    */
-  private getAllInteractableObjects(): GameObject[] {
+  private getAllInteractableObjects(): GameEntity[] {
     return [
       ...this.mapManager.getNpcs(),
       ...this.mapManager.getTreasures().filter((t) => !t.isOpened()),
@@ -138,14 +139,32 @@ export class ExplorationController {
   }
 
   /**
-   * 描画用に全GameObjectを取得
+   * 描画用にRenderableEntityを取得
+   * 各エンティティの状態に entityType を付与して返す
    */
-  public getGameObjects(): GameObject[] {
-    return [
-      ...this.mapManager.getTreasures(),
-      ...this.mapManager.getNpcs(),
-      ...this.mapManager.getFixedEnemies().filter((e) => !e.isDead()),
-      this.player,
-    ];
+  public getRenderableEntities(): RenderableEntity[] {
+    const entities: RenderableEntity[] = [];
+
+    // 宝箱
+    for (const treasure of this.mapManager.getTreasures()) {
+      entities.push({ entityType: 'treasure', ...treasure.getState() });
+    }
+
+    // NPC
+    for (const npc of this.mapManager.getNpcs()) {
+      entities.push({ entityType: 'npc', ...npc.getState() });
+    }
+
+    // 固定敵
+    for (const enemy of this.mapManager.getFixedEnemies()) {
+      if (!enemy.isDead()) {
+        entities.push({ entityType: 'enemy', ...enemy.getState() });
+      }
+    }
+
+    // プレイヤー
+    entities.push({ entityType: 'player', ...this.player.getState() });
+
+    return entities;
   }
 }

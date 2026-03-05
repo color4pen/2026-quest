@@ -23,7 +23,7 @@ function App() {
 
   const {
     state,
-    gameObjects,
+    entities,
     battle,
     dialogue,
     shop,
@@ -120,7 +120,7 @@ function App() {
 
         <div className="center-panel">
           <GameCanvas
-            gameObjects={gameObjects}
+            entities={entities}
             map={state.map}
             camera={state.camera}
           />

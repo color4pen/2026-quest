@@ -10,29 +10,29 @@ import {
 } from '../types/game';
 import { NPC_DEFINITIONS } from '../data/npcDefinitions';
 import {
-  GameObject,
-  GameObjectState,
-  NPCRenderer,
-  ComputerRenderer,
+  GameEntity,
+  GameEntityState,
   Interactable,
   InteractionResult,
-} from '../components/game';
+} from './base';
 
 /**
  * NPC状態（React用）
  */
-export interface NPCState extends GameObjectState {
+export interface NPCState extends GameEntityState {
   npcId: string;
   name: string;
   type: NPCType;
+  renderType?: 'npc' | 'computer';
 }
 
 /**
  * NPCクラス
- * GameObjectを継承し、Interactableを実装
- * 会話・ショップ・宿屋データを所有
+ * GameEntityを継承し、Interactableを実装。
+ * 会話・ショップ・宿屋データを所有。
+ * 描画ロジックは持たない（プレゼンテーション層が担当）。
  */
-export class NPC extends GameObject implements Interactable {
+export class NPC extends GameEntity implements Interactable {
   public readonly npcId: string;
   public readonly name: string;
   public readonly type: NPCType;
@@ -41,6 +41,7 @@ export class NPC extends GameObject implements Interactable {
   public readonly conditionalStartIds?: ConditionalStartId[];
   public readonly shopItems?: ShopItem[];
   public readonly healCost?: number;
+  public readonly renderType: 'npc' | 'computer';
 
   constructor(definition: NPCDefinition, x: number, y: number) {
     super(x, y);
@@ -54,15 +55,7 @@ export class NPC extends GameObject implements Interactable {
     this.conditionalStartIds = definition.conditionalStartIds;
     this.shopItems = definition.shopItems;
     this.healCost = definition.healCost;
-
-    // Rendererを設定（renderTypeに応じて切り替え）
-    if (definition.renderType === 'computer') {
-      this.renderer = new ComputerRenderer(this.transform);
-    } else {
-      // デフォルト: NPC種別で色を変える人型描画
-      const colors = NPCRenderer.getColorsForType(this.type);
-      this.renderer = new NPCRenderer(this.transform, colors);
-    }
+    this.renderType = definition.renderType === 'computer' ? 'computer' : 'npc';
   }
 
   // ==================== Interactable実装 ====================
@@ -70,7 +63,7 @@ export class NPC extends GameObject implements Interactable {
   /**
    * プレイヤーとの相互作用（会話開始）
    */
-  onInteract(_player: GameObject): InteractionResult {
+  onInteract(_player: GameEntity): InteractionResult {
     return {
       type: 'dialogue',
       data: this,  // 自身を会話対象として渡す
@@ -96,6 +89,7 @@ export class NPC extends GameObject implements Interactable {
       npcId: this.npcId,
       name: this.name,
       type: this.type,
+      renderType: this.renderType,
     };
   }
 

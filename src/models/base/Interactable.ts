@@ -1,4 +1,4 @@
-import type { GameObject } from './GameObject';
+import type { GameEntity } from './GameEntity';
 
 /**
  * インタラクション結果
@@ -19,7 +19,7 @@ export interface Interactable {
    * @param player プレイヤーオブジェクト
    * @returns インタラクション結果
    */
-  onInteract(player: GameObject): InteractionResult;
+  onInteract(player: GameEntity): InteractionResult;
 
   /**
    * インタラクション可能かどうか

@@ -1,6 +1,6 @@
 import { render } from '../test/helpers';
 import { GameCanvas } from './GameCanvas';
-import { Player } from '../models';
+import { RenderableEntity } from '../types/rendering';
 import { CameraState, GrassDecoration, TileType } from '../types/game';
 import { GameMapState } from '../models';
 
@@ -33,6 +33,17 @@ function createCamera(overrides: Partial<CameraState> = {}): CameraState {
   };
 }
 
+// テスト用のプレイヤーエンティティ
+function createPlayerEntity(x: number = 1, y: number = 1): RenderableEntity {
+  return {
+    entityType: 'player',
+    id: 'player_0',
+    x,
+    y,
+    active: true,
+  };
+}
+
 describe('GameCanvas', () => {
   describe('基本表示', () => {
     it('game-screen クラスを持つコンテナが表示される', () => {
@@ -45,7 +56,7 @@ describe('GameCanvas', () => {
       const camera = createCamera();
 
       const { container } = render(
-        <GameCanvas gameObjects={[]} map={map} camera={camera} />
+        <GameCanvas entities={[]} map={map} camera={camera} />
       );
 
       expect(container.querySelector('.game-screen')).toBeInTheDocument();
@@ -57,7 +68,7 @@ describe('GameCanvas', () => {
       const camera = createCamera();
 
       const { container } = render(
-        <GameCanvas gameObjects={[]} map={map} camera={camera} />
+        <GameCanvas entities={[]} map={map} camera={camera} />
       );
 
       const canvas = container.querySelector('canvas');
@@ -68,18 +79,18 @@ describe('GameCanvas', () => {
     });
   });
 
-  describe('GameObjects描画', () => {
-    it('空の gameObjects 配列でもエラーにならない', () => {
+  describe('エンティティ描画', () => {
+    it('空の entities 配列でもエラーにならない', () => {
       const tiles: TileType[][] = [['grass']];
       const map = createTestMap(tiles);
       const camera = createCamera();
 
       expect(() => {
-        render(<GameCanvas gameObjects={[]} map={map} camera={camera} />);
+        render(<GameCanvas entities={[]} map={map} camera={camera} />);
       }).not.toThrow();
     });
 
-    it('プレイヤーオブジェクトを渡してもエラーにならない', () => {
+    it('プレイヤーエンティティを渡してもエラーにならない', () => {
       const tiles: TileType[][] = [
         ['grass', 'grass', 'grass'],
         ['grass', 'grass', 'grass'],
@@ -87,10 +98,10 @@ describe('GameCanvas', () => {
       ];
       const map = createTestMap(tiles);
       const camera = createCamera({ x: 1, y: 1 });
-      const player = new Player(1, 1);
+      const player = createPlayerEntity(1, 1);
 
       expect(() => {
-        render(<GameCanvas gameObjects={[player]} map={map} camera={camera} />);
+        render(<GameCanvas entities={[player]} map={map} camera={camera} />);
       }).not.toThrow();
     });
   });
@@ -108,7 +119,7 @@ describe('GameCanvas', () => {
         const camera = createCamera({ x: 0, y: 0 });
 
         expect(() => {
-          render(<GameCanvas gameObjects={[]} map={map} camera={camera} />);
+          render(<GameCanvas entities={[]} map={map} camera={camera} />);
         }).not.toThrow();
       });
     });
@@ -131,7 +142,7 @@ describe('GameCanvas', () => {
       cameraPositions.forEach(({ x, y }) => {
         const camera = createCamera({ x, y });
         expect(() => {
-          render(<GameCanvas gameObjects={[]} map={map} camera={camera} />);
+          render(<GameCanvas entities={[]} map={map} camera={camera} />);
         }).not.toThrow();
       });
     });
@@ -160,7 +171,7 @@ describe('GameCanvas', () => {
       const camera = createCamera({ x: 0, y: 0 });
 
       expect(() => {
-        render(<GameCanvas gameObjects={[]} map={map} camera={camera} />);
+        render(<GameCanvas entities={[]} map={map} camera={camera} />);
       }).not.toThrow();
     });
   });

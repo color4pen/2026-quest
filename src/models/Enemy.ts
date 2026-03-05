@@ -7,12 +7,11 @@ import {
   ENEMY_TEMPLATES,
 } from '../types/game';
 import {
-  GameObject,
-  GameObjectState,
-  EnemyRenderer,
+  GameEntity,
+  GameEntityState,
   Interactable,
   InteractionResult,
-} from '../components/game';
+} from './base';
 import { CombatCalculator } from '../engine/CombatCalculator';
 import { HitPoints } from './values/HitPoints';
 import type { Combatant } from './Combatant';
@@ -23,7 +22,7 @@ import { WaitAction } from './actions/WaitAction';
 /**
  * 敵状態（React用）
  */
-export interface EnemyState extends GameObjectState {
+export interface EnemyState extends GameEntityState {
   hp: number;
   maxHp: number;
   attack: number;
@@ -34,12 +33,11 @@ export interface EnemyState extends GameObjectState {
 
 /**
  * 敵クラス
- * GameObjectを継承し、Interactable、Combatant を実装
+ * GameEntityを継承し、Interactable、Combatant を実装。
+ * 描画ロジックは持たない（プレゼンテーション層が担当）。
  */
-export class Enemy extends GameObject implements Interactable, Combatant {
+export class Enemy extends GameEntity implements Interactable, Combatant {
   private _hp: HitPoints;
-  private static _idCounter = 0;
-  public readonly id: string;
   public attack: number;
   public xpReward: number;
   public goldReward: number;
@@ -49,12 +47,6 @@ export class Enemy extends GameObject implements Interactable, Combatant {
 
   constructor(x: number, y: number, playerLevel: number, battleConfig?: EnemyBattleConfig) {
     super(x, y);
-
-    // 一意なIDを生成
-    this.id = `enemy_${Enemy._idCounter++}`;
-
-    // Rendererを設定（自身の描画方法を所有）
-    this.renderer = new EnemyRenderer(this.transform);
 
     // バトル設定を所有（渡されなければランダムに選択）
     this.battleConfig = battleConfig ??
@@ -100,7 +92,7 @@ export class Enemy extends GameObject implements Interactable, Combatant {
   /**
    * プレイヤーとの相互作用（バトル開始）
    */
-  onInteract(_player: GameObject): InteractionResult {
+  onInteract(_player: GameEntity): InteractionResult {
     return {
       type: 'battle',
       data: this,
