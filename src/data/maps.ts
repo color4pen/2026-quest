@@ -25,16 +25,6 @@ const S: TileType = 'stairs';
 const D: TileType = 'door';
 const A: TileType = 'sand';
 const B: TileType = 'bridge';
-// 村オブジェクト（2x2）
-const V1: TileType = 'village_tl';
-const V2: TileType = 'village_tr';
-const V3: TileType = 'village_bl';
-const V4: TileType = 'village_br';
-// 洞窟オブジェクト（2x2）
-const C1: TileType = 'cave_tl';
-const C2: TileType = 'cave_tr';
-const C3: TileType = 'cave_bl';
-const C4: TileType = 'cave_br';
 
 /**
  * 村マップ（エンカウントなし）
@@ -106,17 +96,13 @@ function generateLargeField(): TileType[][] {
   for (let y = 0; y < height; y++) {
     const row: TileType[] = [];
     for (let x = 0; x < width; x++) {
-      // === 村オブジェクト（2x2） ===
-      if (x === villageX && y === villageY) row.push(V1);
-      else if (x === villageX + 1 && y === villageY) row.push(V2);
-      else if (x === villageX && y === villageY + 1) row.push(V3);
-      else if (x === villageX + 1 && y === villageY + 1) row.push(V4);
-
-      // === 洞窟オブジェクト（2x2） ===
-      else if (x === caveX && y === caveY) row.push(C1);
-      else if (x === caveX + 1 && y === caveY) row.push(C2);
-      else if (x === caveX && y === caveY + 1) row.push(C3);
-      else if (x === caveX + 1 && y === caveY + 1) row.push(C4);
+      // 村・洞窟オブジェクトの位置は草地（オブジェクトレイヤーで描画）
+      if (
+        (x >= villageX && x < villageX + 2 && y >= villageY && y < villageY + 2) ||
+        (x >= caveX && x < caveX + 2 && y >= caveY && y < caveY + 2)
+      ) {
+        row.push(G);
+      }
 
       // === 外周 ===
       else if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
@@ -175,6 +161,30 @@ export const MAP_FIELD: MapDefinition = {
   name: '広大な草原',
   playerStart: { x: 24, y: 7 },  // 村の前の道からスタート
   tiles: generateLargeField(),
+  objects: [
+    // 村オブジェクト（2x2）
+    {
+      id: 'village_entrance',
+      x: 24,
+      y: 4,
+      image: 'village',
+      width: 2,
+      height: 2,
+      walkable: true,  // 通行可能（ワープする）
+      warpTo: { mapId: 'village', x: 10, y: 12 },
+    },
+    // 洞窟オブジェクト（2x2）
+    {
+      id: 'cave_entrance',
+      x: 24,
+      y: 34,
+      image: 'cave',
+      width: 2,
+      height: 2,
+      walkable: true,  // 通行可能（ワープする）
+      warpTo: { mapId: 'dungeon', x: 10, y: 1 },
+    },
+  ],
   treasures: [
     { x: 5, y: 5, gold: 30 },      // 左上の草地
     { x: 40, y: 20, gold: 50 },    // 横道沿い
@@ -183,18 +193,8 @@ export const MAP_FIELD: MapDefinition = {
     { x: 20, y: 15, gold: 35 },    // 中央の草地
     { x: 45, y: 30, gold: 100 },   // 右下の草地
   ],
-  warps: [
-    // 村オブジェクト（2x2全タイル）→ 村内部
-    { x: 24, y: 4, toMapId: 'village', toX: 10, toY: 12 },
-    { x: 25, y: 4, toMapId: 'village', toX: 10, toY: 12 },
-    { x: 24, y: 5, toMapId: 'village', toX: 10, toY: 12 },
-    { x: 25, y: 5, toMapId: 'village', toX: 10, toY: 12 },
-    // 洞窟オブジェクト（2x2全タイル）→ ダンジョン
-    { x: 24, y: 34, toMapId: 'dungeon', toX: 10, toY: 1 },
-    { x: 25, y: 34, toMapId: 'dungeon', toX: 10, toY: 1 },
-    { x: 24, y: 35, toMapId: 'dungeon', toX: 10, toY: 1 },
-    { x: 25, y: 35, toMapId: 'dungeon', toX: 10, toY: 1 },
-  ],
+  // warpsは空（村・洞窟はobjects.warpToで処理）
+  warps: [],
   encounter: {
     rate: 0.10,
     enemyIds: ['スライム', 'バット', 'ゴブリン', 'コボルト'],

@@ -25,17 +25,26 @@ export type TileType =
   | 'stairs'   // 階段（ワープポイント）
   | 'door'     // 扉
   | 'sand'     // 砂地
-  | 'bridge'   // 橋（水上を通過可能）
-  // 村オブジェクト（2x2）
-  | 'village_tl'  // 村・左上
-  | 'village_tr'  // 村・右上
-  | 'village_bl'  // 村・左下（入り口）
-  | 'village_br'  // 村・右下（入り口）
-  // 洞窟オブジェクト（2x2）
-  | 'cave_tl'     // 洞窟・左上
-  | 'cave_tr'     // 洞窟・右上
-  | 'cave_bl'     // 洞窟・左下（入り口）
-  | 'cave_br';    // 洞窟・右下（入り口）
+  | 'bridge';  // 橋（水上を通過可能）
+
+/**
+ * マップオブジェクト
+ * 地形タイルの上に配置される構造物（村、洞窟、テント等）
+ */
+export interface MapObject {
+  id: string;
+  x: number;           // 左上のタイル座標
+  y: number;
+  image: string;       // 描画用ID（'village', 'cave'等）
+  width: number;       // タイル単位の幅
+  height: number;      // タイル単位の高さ
+  walkable: boolean;   // true: 通行可能, false: 通行不可
+  warpTo?: {           // ワープ先（入口の場合）
+    mapId: string;
+    x: number;
+    y: number;
+  };
+}
 
 export type Direction = 'up' | 'down' | 'left' | 'right';
 export type MessageType = 'normal' | 'combat' | 'loot' | 'level-up';
@@ -140,6 +149,7 @@ export interface MapDefinition {
   doors?: DoorPlacement[];  // 条件付き扉
   fixedEnemies?: FixedEnemyPlacement[];  // 固定敵（ボスなど）
   encounter?: EncounterConfig;  // なければエンカウントなし
+  objects?: MapObject[];  // マップオブジェクト（村、洞窟等）
 }
 
 // バトル関連の型をre-export

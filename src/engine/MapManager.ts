@@ -188,9 +188,26 @@ export class MapManager {
 
   /**
    * ワープポイントを取得
+   * ワープ定義とオブジェクトのwarpTo両方をチェック
    */
   getWarpAt(position: Position): WarpPoint | null {
-    return this.gameMap.getWarpAt(position) ?? null;
+    // 1. 通常のワープポイント
+    const warp = this.gameMap.getWarpAt(position);
+    if (warp) return warp;
+
+    // 2. オブジェクトのワープ（村・洞窟入口等）
+    const obj = this.gameMap.getObjectAt(position);
+    if (obj?.warpTo) {
+      return {
+        x: position.x,
+        y: position.y,
+        toMapId: obj.warpTo.mapId,
+        toX: obj.warpTo.x,
+        toY: obj.warpTo.y,
+      };
+    }
+
+    return null;
   }
 
   // ==================== Getter ====================

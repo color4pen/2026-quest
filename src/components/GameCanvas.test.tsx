@@ -14,6 +14,7 @@ function createTestMap(tiles: TileType[][] = [[]]): GameMapState {
     name: 'テストマップ',
     tiles,
     grassDecorations: decorations,
+    objects: [],
     npcs: [],
     enemies: [],
     treasures: [],
@@ -98,8 +99,6 @@ describe('GameCanvas', () => {
     const tileTypes: TileType[] = [
       'grass', 'tree', 'path', 'water', 'floor', 'wall',
       'stairs', 'door', 'sand', 'bridge',
-      'village_tl', 'village_tr', 'village_bl', 'village_br',
-      'cave_tl', 'cave_tr', 'cave_bl', 'cave_br',
     ];
 
     tileTypes.forEach((tileType) => {

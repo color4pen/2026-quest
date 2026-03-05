@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
-import { TileType, GrassDecoration, TILE_SIZE, CameraState } from '../types/game';
+import { TileType, GrassDecoration, TILE_SIZE, CameraState, MapObject } from '../types/game';
 import { GameMapState } from '../models';
 import { GameObject } from './game';
 import { assetPath } from '../utils/assetPath';
@@ -75,10 +75,13 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
         const tile = map.tiles[y]?.[x];
         const decorations = map.grassDecorations[y]?.[x];
         if (tile) {
-          drawTile(ctx, x, y, tile, decorations, camera, villageImage, caveImage);
+          drawTile(ctx, x, y, tile, decorations, camera);
         }
       }
     }
+
+    // MapObject描画（村、洞窟等）
+    drawObjects(ctx, map.objects, camera, villageImage, caveImage);
 
     // GameObjectを描画（ビューポート内のみ）
     sortedObjects.forEach(obj => {
@@ -125,8 +128,6 @@ function drawTile(
   type: TileType,
   decorations: GrassDecoration[] | null,
   camera: CameraState,
-  villageImage: HTMLImageElement | null,
-  caveImage: HTMLImageElement | null,
 ) {
   // カメラからの相対位置を計算
   const px = (x - camera.x + camera.viewportWidth / 2) * TILE_SIZE;
@@ -244,92 +245,68 @@ function drawTile(
       ctx.fillRect(px + 22, py + 8, 2, 16);
       break;
 
-    // === 村オブジェクト（2x2）- 画像を4分割 ===
-    case 'village_tl':
-      ctx.fillStyle = '#4a7c59';
-      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (villageImage) {
-        const hw = villageImage.naturalWidth / 2;
-        const hh = villageImage.naturalHeight / 2;
-        ctx.drawImage(villageImage, 0, 0, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
-      }
-      break;
-
-    case 'village_tr':
-      ctx.fillStyle = '#4a7c59';
-      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (villageImage) {
-        const hw = villageImage.naturalWidth / 2;
-        const hh = villageImage.naturalHeight / 2;
-        ctx.drawImage(villageImage, hw, 0, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
-      }
-      break;
-
-    case 'village_bl':
-      ctx.fillStyle = '#4a7c59';
-      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (villageImage) {
-        const hw = villageImage.naturalWidth / 2;
-        const hh = villageImage.naturalHeight / 2;
-        ctx.drawImage(villageImage, 0, hh, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
-      }
-      break;
-
-    case 'village_br':
-      ctx.fillStyle = '#4a7c59';
-      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (villageImage) {
-        const hw = villageImage.naturalWidth / 2;
-        const hh = villageImage.naturalHeight / 2;
-        ctx.drawImage(villageImage, hw, hh, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
-      }
-      break;
-
-    // === 洞窟オブジェクト（2x2）- 画像を4分割 ===
-    case 'cave_tl':
-      ctx.fillStyle = '#4a7c59';
-      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (caveImage) {
-        const hw = caveImage.naturalWidth / 2;
-        const hh = caveImage.naturalHeight / 2;
-        ctx.drawImage(caveImage, 0, 0, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
-      }
-      break;
-
-    case 'cave_tr':
-      ctx.fillStyle = '#4a7c59';
-      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (caveImage) {
-        const hw = caveImage.naturalWidth / 2;
-        const hh = caveImage.naturalHeight / 2;
-        ctx.drawImage(caveImage, hw, 0, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
-      }
-      break;
-
-    case 'cave_bl':
-      ctx.fillStyle = '#4a7c59';
-      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (caveImage) {
-        const hw = caveImage.naturalWidth / 2;
-        const hh = caveImage.naturalHeight / 2;
-        ctx.drawImage(caveImage, 0, hh, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
-      }
-      break;
-
-    case 'cave_br':
-      ctx.fillStyle = '#4a7c59';
-      ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      if (caveImage) {
-        const hw = caveImage.naturalWidth / 2;
-        const hh = caveImage.naturalHeight / 2;
-        ctx.drawImage(caveImage, hw, hh, hw, hh, px, py, TILE_SIZE, TILE_SIZE);
-      }
-      break;
-
     default:
       // 未知のタイル（デバッグ用）
       ctx.fillStyle = '#ff00ff';
       ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
       break;
+  }
+}
+
+// ==================== MapObject描画 ====================
+
+function drawObjects(
+  ctx: CanvasRenderingContext2D,
+  objects: MapObject[] | undefined,
+  camera: CameraState,
+  villageImage: HTMLImageElement | null,
+  caveImage: HTMLImageElement | null,
+): void {
+  if (!objects || objects.length === 0) return;
+
+  const halfW = camera.viewportWidth / 2;
+  const halfH = camera.viewportHeight / 2;
+
+  for (const obj of objects) {
+    // ビューポート外はスキップ
+    if (
+      obj.x + obj.width < camera.x - halfW ||
+      obj.x > camera.x + halfW ||
+      obj.y + obj.height < camera.y - halfH ||
+      obj.y > camera.y + halfH
+    ) {
+      continue;
+    }
+
+    const px = (obj.x - camera.x + halfW) * TILE_SIZE;
+    const py = (obj.y - camera.y + halfH) * TILE_SIZE;
+    const pw = obj.width * TILE_SIZE;
+    const ph = obj.height * TILE_SIZE;
+
+    // 画像IDに基づいて描画
+    switch (obj.image) {
+      case 'village':
+        // 背景（画像読み込み前のフォールバック）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        if (villageImage) {
+          ctx.drawImage(villageImage, px, py, pw, ph);
+        }
+        break;
+
+      case 'cave':
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        if (caveImage) {
+          ctx.drawImage(caveImage, px, py, pw, ph);
+        }
+        break;
+
+      default:
+        // 未知のオブジェクト（デバッグ用）
+        ctx.fillStyle = '#ff00ff';
+        ctx.fillRect(px, py, pw, ph);
+        break;
+    }
   }
 }
