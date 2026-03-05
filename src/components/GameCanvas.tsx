@@ -41,6 +41,7 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const villageImage = useImage(assetPath('/assets/images/tiles/village.jpg'));
   const caveImage = useImage(assetPath('/assets/images/tiles/cave.jpg'));
+  const tentImage = useImage(assetPath('/assets/images/tiles/Tent-F.png'));
 
   const mapHeight = map.tiles.length;
   const mapWidth = map.tiles[0]?.length ?? 20;
@@ -80,8 +81,8 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
       }
     }
 
-    // MapObject描画（村、洞窟等）
-    drawObjects(ctx, map.objects, camera, villageImage, caveImage);
+    // MapObject描画（村、洞窟、テント等）
+    drawObjects(ctx, map.objects, camera, villageImage, caveImage, tentImage);
 
     // GameObjectを描画（ビューポート内のみ）
     sortedObjects.forEach(obj => {
@@ -105,7 +106,7 @@ export function GameCanvas({ gameObjects, map, camera }: GameCanvasProps) {
       ctx.lineTo(canvas.width, screenY);
     }
     ctx.stroke();
-  }, [gameObjects, map, mapHeight, mapWidth, camera, villageImage, caveImage]);
+  }, [gameObjects, map, mapHeight, mapWidth, camera, villageImage, caveImage, tentImage]);
 
   return (
     <div className="game-screen">
@@ -261,6 +262,7 @@ function drawObjects(
   camera: CameraState,
   villageImage: HTMLImageElement | null,
   caveImage: HTMLImageElement | null,
+  tentImage: HTMLImageElement | null,
 ): void {
   if (!objects || objects.length === 0) return;
 
@@ -349,6 +351,22 @@ function drawObjects(
         ctx.fillStyle = '#8b0000';
         ctx.fillRect(px, py + 6, 6, 6);
         ctx.fillRect(px + pw - 6, py + 6, 6, 6);
+        break;
+
+      case 'tent':
+        // テント（3x3タイル、スプライトシートから切り出し）
+        // 背景（草地）
+        ctx.fillStyle = '#4a7c59';
+        ctx.fillRect(px, py, pw, ph);
+        if (tentImage) {
+          // スプライトシートからテント部分を切り出し（右上のテント）
+          // ソース: x=288, y=0, 幅=96, 高さ=96
+          ctx.drawImage(
+            tentImage,
+            288, 0, 96, 96,  // ソース領域
+            px, py, pw, ph   // 描画先
+          );
+        }
         break;
 
       default:

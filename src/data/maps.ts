@@ -249,6 +249,16 @@ export const MAP_CAMPSITE: MapDefinition = {
       height: 2,
       walkable: false,  // 通行不可（湖の中）
     },
+    // テント
+    {
+      id: 'tent',
+      x: 3,
+      y: 7,
+      image: 'tent',
+      width: 3,
+      height: 3,
+      walkable: false,  // 通行不可
+    },
     // 車オブジェクト（フィールドへ戻る）
     {
       id: 'car_to_field',
