@@ -369,13 +369,6 @@ function drawObjects(
         }
         break;
 
-      case 'tent_entrance':
-        // テント入り口（透明 - テント本体の下に見える）
-        // 草地の背景のみ描画（テントの一部として見える）
-        ctx.fillStyle = '#4a7c59';
-        ctx.fillRect(px, py, pw, ph);
-        break;
-
       case 'campfire':
         // 焚き火（2x2タイル）
         ctx.fillStyle = '#6b6b7a';

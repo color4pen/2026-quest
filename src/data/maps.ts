@@ -249,26 +249,15 @@ export const MAP_CAMPSITE: MapDefinition = {
       height: 2,
       walkable: false,  // 通行不可（湖の中）
     },
-    // テント本体（湖の右側に配置）
+    // テント（湖の右側に配置）
     {
       id: 'tent',
       x: 13,
       y: 7,
       image: 'tent',
       width: 5,
-      height: 4,
-      walkable: false,  // 通行不可（壁部分）
-    },
-    // テント入り口（歩いて入るとテント内へ）
-    {
-      id: 'tent_entrance',
-      x: 15,
-      y: 11,
-      image: 'tent_entrance',
-      width: 2,
-      height: 1,
-      walkable: true,
-      warpTo: { mapId: 'tent_interior', x: 5, y: 6 },
+      height: 5,
+      walkable: false,  // 通行不可
     },
     // テントの傍の車（ワープなし、装飾用、入り口の右）
     {
@@ -293,7 +282,11 @@ export const MAP_CAMPSITE: MapDefinition = {
     },
   ],
   treasures: [],
-  warps: [],
+  warps: [
+    // テント入り口 → テント内部へ
+    { x: 15, y: 12, toMapId: 'tent_interior', toX: 4, toY: 6 },
+    { x: 16, y: 12, toMapId: 'tent_interior', toX: 5, toY: 6 },
+  ],
   // エンカウントなし（キャンプ場は安全）
   encounter: undefined,
 };
