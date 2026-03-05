@@ -100,12 +100,12 @@ describe('BattleCalculator', () => {
       const commands = calculateBattleEndCommands('victory', [boss]);
 
       expect(commands).toContainEqual({
-        type: 'setGameState',
+        type: 'setGameProgress',
         key: 'boss_forest_defeated',
         value: 1,
       });
       expect(commands).toContainEqual({
-        type: 'setGameState',
+        type: 'setGameProgress',
         key: 'quest_main',
         value: 2,
       });

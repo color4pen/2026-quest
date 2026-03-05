@@ -10,7 +10,7 @@ import {
   ShopItem,
   CameraState,
   PartyState,
-  PartyMemberDefinition,
+  PartyMemberTemplate,
 } from '../types/game';
 import { SaveSlotInfo } from '../types/save';
 import { SaveLoadHandler, MemberRestoreData } from './SaveLoadHandler';
@@ -24,14 +24,14 @@ import {
   NPCState,
   NPC,
   Party,
-  GameStateManager,
+  GameProgressManager,
 } from '../models';
 import { StateKey } from '../data/stateKeys';
 import { BattleEngine } from './BattleEngine';
 import { DialogueEngine } from './DialogueEngine';
 import { RenderableEntity } from '../types/rendering';
 import { INITIAL_MAP_ID } from '../data/maps';
-import { INITIAL_PARTY_MEMBER, getPartyMemberDefinition } from '../data/partyMembers';
+import { INITIAL_PARTY_MEMBER, getPartyMemberTemplate } from '../data/partyMembers';
 import { CameraManager } from './CameraManager';
 import { EncounterManager } from './EncounterManager';
 import { InteractionHandler } from './InteractionHandler';
@@ -87,7 +87,7 @@ export class GameEngine {
   private interactionHandler: InteractionHandler;
   private saveLoadHandler: SaveLoadHandler;
   private messageManager: MessageManager;
-  private gameStateManager: GameStateManager;
+  private gameProgressManager: GameProgressManager;
 
   // コントローラー
   private explorationController!: ExplorationController;
@@ -105,7 +105,7 @@ export class GameEngine {
     this.party = new Party();
     this.phase = { type: 'exploring' };
     this.listeners = new Set();
-    this.gameStateManager = new GameStateManager();
+    this.gameProgressManager = new GameProgressManager();
     this.mapManager = new MapManager(INITIAL_MAP_ID);
     this.cameraManager = new CameraManager();
     this.encounterManager = new EncounterManager();
@@ -145,8 +145,8 @@ export class GameEngine {
     });
 
     this.dialogueController = new DialogueController(this.party, {
-      getGameState: (key) => this.gameStateManager.get(key),
-      setGameState: (key, value) => this.gameStateManager.set(key, value),
+      getGameProgress: (key) => this.gameProgressManager.get(key),
+      setGameProgress: (key, value) => this.gameProgressManager.set(key, value),
       executeCommands: (commands) => this.executeCommands(commands),
       addMessage: (text, type) => this.addMessage(text, type),
       onDialogueStart: (engine) => this.transitionTo({ type: 'dialogue', engine }),
@@ -177,7 +177,7 @@ export class GameEngine {
     this.messageManager.clear();
     this.transitionTo({ type: 'exploring' });
     this.mapManager.setTreasureStatesCache({});
-    this.gameStateManager.reset();
+    this.gameProgressManager.reset();
 
     this.party.reset();
     this.party.addMember(INITIAL_PARTY_MEMBER);
@@ -207,7 +207,7 @@ export class GameEngine {
     const result = this.mapManager.loadMap(mapId, playerX, playerY, {
       skipCache,
       leaderLevel,
-      getGameState: (key) => this.gameStateManager.get(key as StateKey),
+      getGameProgress: (key) => this.gameProgressManager.get(key as StateKey),
     });
     if (!result) return;
 
@@ -316,7 +316,7 @@ export class GameEngine {
     return this.partyController.unequipItem(memberId, slot);
   }
 
-  public recruitMember(definition: PartyMemberDefinition): boolean {
+  public recruitMember(definition: PartyMemberTemplate): boolean {
     return this.partyController.recruitMember(definition);
   }
 
@@ -339,7 +339,7 @@ export class GameEngine {
       state: this.getState(),
       currentMapId: this.mapManager.getCurrentMapId(),
       treasureStatesCache: this.mapManager.getTreasureStatesCache(),
-      gameState: this.gameStateManager.getState(),
+      gameState: this.gameProgressManager.getProgress(),
     });
 
     this.addMessage(success ? 'ゲームをセーブしました！' : 'セーブに失敗しました...', 'normal');
@@ -375,7 +375,7 @@ export class GameEngine {
     this.transitionTo({ type: 'exploring' });
 
     this.mapManager.setTreasureStatesCache(data.treasureStatesCache);
-    this.gameStateManager.restoreState(data.gameState);
+    this.gameProgressManager.restoreProgress(data.gameState);
     this.applyPartyRestoreData(data.members, data.gold, data.inventory);
     this.loadMap(data.mapId, data.playerPosition.x, data.playerPosition.y, true);
 
@@ -396,7 +396,7 @@ export class GameEngine {
     }
 
     for (const memberData of members) {
-      const definition = getPartyMemberDefinition(memberData.definitionId);
+      const definition = getPartyMemberTemplate(memberData.definitionId);
       if (!definition) continue;
 
       this.party.addMember(definition);
@@ -454,8 +454,8 @@ export class GameEngine {
         case 'distributeXp':
           this.distributeXpToAliveMembers(cmd.xp);
           break;
-        case 'setGameState':
-          this.gameStateManager.set(cmd.key, cmd.value);
+        case 'setGameProgress':
+          this.gameProgressManager.set(cmd.key, cmd.value);
           break;
         case 'addItem':
           this.party.addItemById(cmd.itemId, cmd.quantity);

@@ -1,4 +1,4 @@
-import { PartyMemberDefinition } from '../types/party';
+import { PartyMemberTemplate } from '../types/party';
 import {
   ENGINEER_SKILLS,
   WARRIOR_SKILLS,
@@ -6,12 +6,12 @@ import {
   HEALER_SKILLS,
 } from './skills';
 
-// ==================== パーティーメンバー定義 ====================
+// ==================== パーティーメンバーテンプレート ====================
 
 /**
  * 初期メンバー（エンジニア）
  */
-export const INITIAL_PARTY_MEMBER: PartyMemberDefinition = {
+export const INITIAL_PARTY_MEMBER: PartyMemberTemplate = {
   id: 'engineer',
   name: 'せきくん',
   class: 'engineer',
@@ -34,7 +34,7 @@ export const INITIAL_PARTY_MEMBER: PartyMemberDefinition = {
 /**
  * 仲間にできるキャラクター一覧
  */
-export const RECRUITABLE_MEMBERS: PartyMemberDefinition[] = [
+export const RECRUITABLE_MEMBERS: PartyMemberTemplate[] = [
   {
     id: 'warrior',
     name: 'ガルド',
@@ -92,15 +92,15 @@ export const RECRUITABLE_MEMBERS: PartyMemberDefinition[] = [
 ];
 
 /**
- * 全パーティーメンバー定義を取得
+ * 全パーティーメンバーテンプレートを取得
  */
-export function getAllPartyMemberDefinitions(): PartyMemberDefinition[] {
+export function getAllPartyMemberTemplates(): PartyMemberTemplate[] {
   return [INITIAL_PARTY_MEMBER, ...RECRUITABLE_MEMBERS];
 }
 
 /**
- * IDでメンバー定義を取得
+ * IDでメンバーテンプレートを取得
  */
-export function getPartyMemberDefinition(id: string): PartyMemberDefinition | null {
-  return getAllPartyMemberDefinitions().find(m => m.id === id) ?? null;
+export function getPartyMemberTemplate(id: string): PartyMemberTemplate | null {
+  return getAllPartyMemberTemplates().find(m => m.id === id) ?? null;
 }

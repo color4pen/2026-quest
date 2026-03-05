@@ -52,7 +52,7 @@ export function calculateBattleEndCommands(
     if (onDefeat) {
       for (const change of onDefeat) {
         commands.push({
-          type: 'setGameState',
+          type: 'setGameProgress',
           key: change.key as StateKey,
           value: change.value,
         });

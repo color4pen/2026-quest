@@ -1,4 +1,4 @@
-import { PartyMemberDefinition, PartyState, MAX_PARTY_SIZE, EquipmentSlot } from '../types/party';
+import { PartyMemberTemplate, PartyState, MAX_PARTY_SIZE, EquipmentSlot } from '../types/party';
 import { PartyMember } from './PartyMember';
 import { Item, ItemUseContext, ItemUseResult, EquipmentItem } from './items';
 import { Inventory } from './Inventory';
@@ -24,7 +24,7 @@ export class Party {
    * メンバーを追加
    * @returns 追加成功したかどうか（満員の場合false）
    */
-  addMember(definition: PartyMemberDefinition): boolean {
+  addMember(definition: PartyMemberTemplate): boolean {
     if (this.isFull()) {
       return false;
     }

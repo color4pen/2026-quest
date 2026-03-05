@@ -1,9 +1,9 @@
-import type { PartyMemberDefinition } from '../types/party';
+import type { PartyMemberTemplate } from '../types/party';
 import type { MapDefinition, EnemyBattleConfig, TileType } from '../types/game';
 
 export function createTestMemberDef(
-  overrides?: Partial<PartyMemberDefinition>
-): PartyMemberDefinition {
+  overrides?: Partial<PartyMemberTemplate>
+): PartyMemberTemplate {
   return {
     id: 'test-member',
     name: 'テスト勇者',

@@ -6,7 +6,7 @@
 import { SaveData, SaveSlotInfo, SavedMemberData, SavedTreasureData } from '../types/save';
 import { SaveManager } from '../services/SaveManager';
 import { GameEngineState } from './GameEngine';
-import { getPartyMemberDefinition } from '../data/partyMembers';
+import { getPartyMemberTemplate } from '../data/partyMembers';
 import { StatusEffectType } from '../types/statusEffect';
 
 /**
@@ -110,7 +110,7 @@ export function validateSaveData(data: SaveData): ValidationResult {
  * 定義が見つからない場合はnullを返す
  */
 export function createMemberRestoreData(memberData: SavedMemberData): MemberRestoreData | null {
-  const definition = getPartyMemberDefinition(memberData.definitionId);
+  const definition = getPartyMemberTemplate(memberData.definitionId);
   if (!definition) {
     return null;
   }

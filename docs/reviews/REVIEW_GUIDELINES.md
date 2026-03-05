@@ -67,10 +67,12 @@
 ```
 docs/reviews/
 ├── REVIEW_GUIDELINES.md
-├── design/                    # 設計レビュー
+├── design/                    # 設計レビュー（個別機能）
 │   └── YYYYMMDD-{機能名}.md
-└── impl/                      # 実装レビュー（PRレビュー）
-    └── YYYYMMDD-{機能名}.md
+├── impl/                      # 実装レビュー（PRレビュー）
+│   └── YYYYMMDD-{機能名}.md
+└── codebase/                  # コードベース全体のレビュー
+    └── YYYYMMDD-{テーマ}.md
 ```
 
 ### 設計レビューテンプレート (`design/`)
