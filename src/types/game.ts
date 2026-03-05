@@ -1,18 +1,12 @@
 // 定数
-export const TILE_SIZE = 32;
-export const VIEWPORT_WIDTH = 20;  // 画面に表示するタイル数（横）
-export const VIEWPORT_HEIGHT = 15; // 画面に表示するタイル数（縦）
+export const TILE_SIZE = 32;       // 描画とドメイン両方で使用
 export const MAP_WIDTH = 20;       // 後方互換性のため残す
 export const MAP_HEIGHT = 15;      // 後方互換性のため残す
 export const MAX_MESSAGES = 50;
 
-// カメラ状態
-export interface CameraState {
-  x: number;              // カメラ中心のタイル座標X
-  y: number;              // カメラ中心のタイル座標Y
-  viewportWidth: number;  // 表示幅（タイル数）
-  viewportHeight: number; // 表示高さ（タイル数）
-}
+// 描画関連の定数・型を re-export（後方互換性）
+export { VIEWPORT_WIDTH, VIEWPORT_HEIGHT } from './rendering';
+export type { CameraState, GrassDecoration } from './rendering';
 
 // 基本型
 export type TileType =
@@ -55,25 +49,11 @@ export interface Position {
   y: number;
 }
 
-export interface GrassDecoration {
-  x: number;
-  y: number;
-}
-
 export interface Message {
   id: number;
   text: string;
   type: MessageType;
 }
-
-// 敵の基本ステータス
-export const ENEMY_BASE_STATS = {
-  hp: 30,
-  attack: 5,
-  xpReward: 25,
-  goldMin: 10,
-  goldMax: 30,
-} as const;
 
 // エンカウント設定
 export interface EncounterConfig {

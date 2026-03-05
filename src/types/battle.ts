@@ -1,5 +1,14 @@
 import type { StatusEffectInfo, StatusEffectType } from './statusEffect';
 
+// 敵の基本ステータス
+export const ENEMY_BASE_STATS = {
+  hp: 30,
+  attack: 5,
+  xpReward: 25,
+  goldMin: 10,
+  goldMax: 30,
+} as const;
+
 // バトルコマンド
 export type BattleCommand = 'attack' | 'skill' | 'item' | 'defend';
 
