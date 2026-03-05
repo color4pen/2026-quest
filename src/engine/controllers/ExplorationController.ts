@@ -1,7 +1,7 @@
 import { Direction, MessageType, VIEWPORT_WIDTH } from '../../types/game';
 import { Player, Party, Enemy, NPC } from '../../models';
 import { GameEntity } from '../../models/base';
-import { RenderableEntity } from '../../components/GameCanvas';
+import { RenderableEntity } from '../../types/rendering';
 import { MapManager } from '../MapManager';
 import { CameraManager } from '../CameraManager';
 import { EncounterManager } from '../EncounterManager';

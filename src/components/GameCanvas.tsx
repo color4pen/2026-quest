@@ -1,21 +1,12 @@
 import { useRef, useEffect, useMemo, useState } from 'react';
 import { TileType, GrassDecoration, TILE_SIZE, CameraState, MapObject, NPCType } from '../types/game';
+import { RenderableEntity } from '../types/rendering';
 import { GameMapState } from '../models';
 import { PlayerState } from '../models/Player';
 import { EnemyState } from '../models/Enemy';
 import { NPCState } from '../models/NPC';
 import { TreasureState } from '../models/Treasure';
 import { assetPath } from '../utils/assetPath';
-
-/**
- * 描画可能なエンティティの型
- * 各モデルの状態をユニオンで表現
- */
-export type RenderableEntity =
-  | ({ entityType: 'player' } & PlayerState)
-  | ({ entityType: 'enemy' } & EnemyState)
-  | ({ entityType: 'npc' } & NPCState)
-  | ({ entityType: 'treasure' } & TreasureState);
 
 function useImage(src: string): HTMLImageElement | null {
   const [loaded, setLoaded] = useState(false);

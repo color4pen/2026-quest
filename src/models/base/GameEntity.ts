@@ -1,4 +1,4 @@
-import { Position, CameraState } from '../../types/game';
+import { Position } from '../../types/game';
 import { Transform } from './Transform';
 
 /**
@@ -38,29 +38,11 @@ export abstract class GameEntity {
   get active(): boolean { return this._active; }
   set active(value: boolean) { this._active = value; }
 
-  // 描画順序（デフォルト0、サブクラスでオーバーライド可能）
-  get zIndex(): number { return 0; }
-
   /**
    * 指定座標にいるか判定
    */
   isAt(position: Position): boolean {
     return this.transform.isAt(position);
-  }
-
-  /**
-   * オブジェクトがビューポート内にあるかチェック
-   */
-  isInViewport(camera: CameraState): boolean {
-    const halfW = camera.viewportWidth / 2;
-    const halfH = camera.viewportHeight / 2;
-
-    return (
-      this.transform.x >= camera.x - halfW - 1 &&
-      this.transform.x <= camera.x + halfW + 1 &&
-      this.transform.y >= camera.y - halfH - 1 &&
-      this.transform.y <= camera.y + halfH + 1
-    );
   }
 
   /**

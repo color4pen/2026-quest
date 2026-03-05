@@ -1,5 +1,6 @@
 import { render } from '../test/helpers';
-import { GameCanvas, RenderableEntity } from './GameCanvas';
+import { GameCanvas } from './GameCanvas';
+import { RenderableEntity } from '../types/rendering';
 import { CameraState, GrassDecoration, TileType } from '../types/game';
 import { GameMapState } from '../models';
 

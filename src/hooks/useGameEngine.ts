@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Direction, BattleCommand, SkillDefinition, DialogueChoice, ShopItem, PartyMemberDefinition, EquipmentSlot } from '../types/game';
 import { GameEngine, GameEngineState } from '../engine';
-import { RenderableEntity } from '../components/GameCanvas';
+import { RenderableEntity } from '../types/rendering';
 import { SaveManager } from '../services/SaveManager';
 import { SaveSlotInfo } from '../types/save';
 
